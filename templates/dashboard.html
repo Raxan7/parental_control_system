@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parent Dashboard</title>
+</head>
+<body>
+    <h1>Child Device Monitoring</h1>
+    <div id="usage-chart"></div>
+    <script>
+        fetch('/api/report/ANDROID123/')
+            .then(response => response.json())
+            .then(data => {
+                // Render chart using Chart.js
+                console.log(data);
+            });
+    </script>
+</body>
+</html>

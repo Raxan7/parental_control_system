@@ -1,0 +1,59 @@
+{% extends 'parent_ui/base.html' %}
+{% load static django_bootstrap5 %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Manage Device: {{ device.device_id }}</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Device Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {% bootstrap_form form %}
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Screen Time Rules</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
+                    {% csrf_token %}
+                    {% bootstrap_form screen_time_form %}
+                    <button type="submit" class="btn btn-primary">Update Rules</button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5>Block New App</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'block_app' device_id=device.device_id %}">
+                    {% csrf_token %}
+                    {% bootstrap_form block_app_form %}
+                    <button type="submit" class="btn btn-danger">Block App</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+{% endblock %}

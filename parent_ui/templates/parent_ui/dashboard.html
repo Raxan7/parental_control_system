@@ -1,0 +1,39 @@
+{% extends 'parent_ui/base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Child Activity Dashboard</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        {% include 'parent_ui/partials/_device_list.html' %}
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Blocked Apps</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for app in blocked_apps %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ app.app_name }}
+                        <span class="badge bg-danger rounded-pill">Blocked</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item">No apps blocked</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        {% include 'parent_ui/partials/_usage_charts.html' %}
+    </div>
+</div>
+{% endblock %}

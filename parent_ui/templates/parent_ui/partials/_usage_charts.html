@@ -1,0 +1,99 @@
+<!-- parent_ui/templates/parent_ui/partials/_usage_charts.html -->
+<div class="card">
+    <div class="card-header">
+        <h5>App Usage Statistics</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <canvas id="usageChart" height="300"></canvas>
+            </div>
+            <div class="col-md-6">
+                <canvas id="timeChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Usage by app pie chart
+    const usageCtx = document.getElementById('usageChart').getContext('2d');
+    const usageChart = new Chart(usageCtx, {
+        type: 'pie',
+        data: {
+            labels: [],
+            datasets: [{
+                data: [],
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                    '#9966FF', '#FF9F40', '#8AC24A', '#607D8B'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Usage by Application'
+                }
+            }
+        }
+    });
+
+    // Usage over time line chart
+    const timeCtx = document.getElementById('timeChart').getContext('2d');
+    const timeChart = new Chart(timeCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Screen Time (hours)',
+                data: [],
+                borderColor: '#36A2EB',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Daily Usage Trend'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Hours'
+                    }
+                }
+            }
+        }
+    });
+
+    // Load data for the first device if available
+    {% if devices %}
+        loadChartData('{% url "usage_data_api" device_id=devices.0.device_id %}');
+    {% endif %}
+
+    // Function to load data via AJAX
+    function loadChartData(url) {
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                // Update pie chart
+                usageChart.data.labels = data.labels;
+                usageChart.data.datasets[0].data = data.data;
+                usageChart.update();
+
+                // For time chart, you would need additional API endpoint
+                // to get time-based data
+            });
+    }
+});
+</script>
