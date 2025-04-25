@@ -121,21 +121,77 @@ class ParentLoginView(LoginView):
         
         # Create JWT tokens
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
         
-        # Set cookies
+        # Set cookies with proper attributes
         response.set_cookie(
             'access_token',
-            str(refresh.access_token),
+            access_token,
             httponly=True,
             secure=not settings.DEBUG,
-            samesite='Lax'
-        )
-        response.set_cookie(
-            'refresh_token',
-            str(refresh),
-            httponly=True,
-            secure=not settings.DEBUG,
-            samesite='Lax'
+            samesite='Lax',
+            path='/'
         )
         
+        # Also set a session variable
+        self.request.session['is_authenticated'] = True
+        
         return response
+
+    def get_success_url(self):
+        return '/'  # Redirect to dashboard
+    
+
+from django.http import JsonResponse
+from rest_framework_simplejwt.tokens import AccessToken
+from django.http import HttpResponseForbidden
+from api.models import CustomUser
+from django.views.decorators.http import require_GET
+
+@require_GET
+def sse_events(request):
+    token = request.GET.get('token')
+    if not token:
+        return HttpResponseForbidden("Missing token")
+
+    try:
+        access_token = AccessToken(token)
+        user_id = access_token['user_id']
+        user = CustomUser.objects.get(id=user_id)
+        request.user = user
+    except Exception as e:
+        return HttpResponseForbidden(f"Invalid token: {str(e)}")
+
+    def generate_response():
+        # Get current updates
+        current_time = timezone.now().isoformat()
+        data = {
+            'timestamp': current_time,
+            'data': {'update': current_time}
+        }
+        return f"data: {json.dumps(data)}\n\n"
+
+    response = StreamingHttpResponse(
+        streaming_content=(generate_response(),),
+        content_type='text/event-stream'
+    )
+    
+    # Only set safe headers
+    response['Cache-Control'] = 'no-cache'
+    return response
+
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+@login_required
+@require_http_methods(["GET"])
+def poll_updates(request):
+    # Get latest updates
+    updates = {
+        'timestamp': timezone.now().isoformat(),
+        'data': {
+            # Add your update data here
+        }
+    }
+    return JsonResponse(updates)

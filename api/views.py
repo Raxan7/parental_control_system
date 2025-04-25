@@ -1,6 +1,6 @@
 from datetime import timezone, datetime
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from .models import ChildDevice, AppUsageLog, ScreenTimeRule, BlockedApp
 from .serializers import DeviceSerializer, AppUsageSerializer
@@ -33,7 +33,11 @@ class UsageDataAPI(APIView):
         try:
             # Debugging: Print token information
             auth_header = request.headers.get('Authorization', '')
-            print(f"Auth Header: {auth_header}")
+            # print(f"Auth Header: {auth_header}")
+            # print(f"User: {request.user}")
+            # print(f"User is authenticated: {request.user.is_authenticated}")
+            # print(f"User is anonymous: {isinstance(request.user, AnonymousUser)}")
+            # print(f"Request headers: {request.headers}")
             
             if auth_header:
                 try:

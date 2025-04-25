@@ -1,0 +1,35 @@
+:root {
+    --sidebar-width: 280px;
+}
+
+body {
+    padding-top: 3.5rem;
+}
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 3.5rem 1rem 1rem;
+    width: var(--sidebar-width);
+    background-color: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+}
+
+.main-content {
+    margin-left: var(--sidebar-width);
+}
+
+/* Dark mode support */
+[data-bs-theme="dark"] .sidebar {
+    background-color: #212529;
+    border-right-color: #343a40;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}

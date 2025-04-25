@@ -83,16 +83,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to load data via AJAX
     function loadChartData(url) {
-        fetch(url)
+        fetchWithAuth(url)
             .then(response => response.json())
             .then(data => {
-                // Update pie chart
                 usageChart.data.labels = data.labels;
                 usageChart.data.datasets[0].data = data.data;
                 usageChart.update();
-
-                // For time chart, you would need additional API endpoint
-                // to get time-based data
+            })
+            .catch(error => {
+                console.error("Failed to load chart data", error);
             });
     }
 });

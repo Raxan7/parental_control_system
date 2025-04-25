@@ -54,3 +54,4 @@ class JWTMiddleware:
                 return JsonResponse({'error': 'Invalid token'}, status=401)
 
         return self.get_response(request)
+    

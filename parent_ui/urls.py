@@ -9,4 +9,7 @@ urlpatterns = [
 
     path('login/', views.ParentLoginView.as_view(), name='login'),
     path('', views.ParentDashboardView.as_view(), name='parent_dashboard'),
+
+    path('events/', views.sse_events, name='sse_events'),
+    path('poll-updates/', views.poll_updates, name='poll_updates'),
 ]
