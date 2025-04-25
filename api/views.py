@@ -5,25 +5,14 @@ from rest_framework.response import Response
 from .models import ChildDevice, AppUsageLog, ScreenTimeRule, BlockedApp
 from .serializers import DeviceSerializer, AppUsageSerializer
 import logging
-from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework_simplejwt.authentication import JWTAuthentication
-
-# api/views.py
-import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from django.contrib.auth.models import AnonymousUser
-
-logger = logging.getLogger(__name__)
-
-# api/views.py
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
+
+logger = logging.getLogger(__name__)
 
 class UsageDataAPI(APIView):
     authentication_classes = [JWTAuthentication]
