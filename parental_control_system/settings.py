@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+import dj_database_url
 import pymysql
 pymysql.install_as_MySQLdb()
 
@@ -115,18 +116,23 @@ WSGI_APPLICATION = 'parental_control_system.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.mysql',
+#         'NAME': os.getenv('DB_NAME'),  # Database name from .env
+#         'USER': os.getenv('DB_USER'),  # Database username from .env
+#         'PASSWORD': os.getenv('DB_PASSWORD'),  # Database password from .env
+#         'HOST': os.getenv('DB_HOST', default='localhost'),  # Database host from .env
+#         'PORT': os.getenv('DB_PORT', default='3306'),  # Database port from .env
+#         'OPTIONS': {
+#             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+#         }
+#     }
+# }
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME'),  # Database name from .env
-        'USER': os.getenv('DB_USER'),  # Database username from .env
-        'PASSWORD': os.getenv('DB_PASSWORD'),  # Database password from .env
-        'HOST': os.getenv('DB_HOST', default='localhost'),  # Database host from .env
-        'PORT': os.getenv('DB_PORT', default='3306'),  # Database port from .env
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
-    }
+    'default': dj_database_url.parse("postgresql://manyerere201:exHjyP9UQFX0@ep-shy-mud-a5gs0r74.us-east-2.aws.neon."
+                                     "tech/parental_control_db?sslmode=require")
 }
 
 
