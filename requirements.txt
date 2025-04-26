@@ -10,6 +10,7 @@ psycopg2-binary==2.9.6
 pyasn1==0.6.1
 PyJWT==2.9.0
 PyMySQL==1.1.1
+python-dotenv==1.0.1
 python-jose==3.3.0
 pytz==2025.2
 rsa==4.9
