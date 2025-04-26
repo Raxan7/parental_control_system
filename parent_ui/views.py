@@ -36,6 +36,9 @@ class ParentDashboardView(TemplateView):
                 'device': device,
                 'logs': logs
             })
+        # device = self.request.user.child_devices.first()
+        # context['device'] = device
+        context['block_app_form'] = BlockAppForm()
         
         context['usage_data'] = usage_data
         context['blocked_apps'] = BlockedApp.objects.filter(device__parent=user)
@@ -91,6 +94,12 @@ def update_screen_time(request, device_id):
     
     return redirect('parent_dashboard')
 
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.core import serializers
+import json
+
 @login_required
 def block_app(request, device_id):
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
@@ -101,9 +110,27 @@ def block_app(request, device_id):
             blocked_app = form.save(commit=False)
             blocked_app.device = device
             blocked_app.save()
+            
+            # Send push notification to device about the new blocked app
+            from .tasks import send_blocked_app_notification
+            send_blocked_app_notification.delay(device.device_id, blocked_app.app_name)
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'success',
+                    'app_name': blocked_app.app_name,
+                    'blocked_at': blocked_app.blocked_at.strftime('%Y-%m-%d %H:%M')
+                })
             return redirect('manage_device', device_id=device_id)
     
     return redirect('parent_dashboard')
+
+@csrf_exempt
+@login_required
+def get_blocked_apps(request, device_id):
+    device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
+    blocked_apps = device.blocked_apps.all().values_list('app_name', flat=True)
+    return JsonResponse({'blocked_apps': list(blocked_apps)})
 
 
 from django.contrib.auth.views import LoginView

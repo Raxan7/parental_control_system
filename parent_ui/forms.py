@@ -23,3 +23,16 @@ class BlockAppForm(forms.ModelForm):
     class Meta:
         model = BlockedApp
         fields = ['app_name']
+
+
+from django import forms
+from api.models import BlockedApp
+
+class BlockAppForm(forms.ModelForm):
+    class Meta:
+        model = BlockedApp
+        fields = ['app_name', 'package_name']
+        widgets = {
+            'app_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'package_name': forms.TextInput(attrs={'class': 'form-control'}),
+        }

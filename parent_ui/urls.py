@@ -12,4 +12,7 @@ urlpatterns = [
 
     path('events/', views.sse_events, name='sse_events'),
     path('poll-updates/', views.poll_updates, name='poll_updates'),
+
+    path('device/<str:device_id>/block-app/', views.block_app, name='block_app'),
+    path('api/device/<str:device_id>/blocked-apps/', views.get_blocked_apps, name='get_blocked_apps'),
 ]
