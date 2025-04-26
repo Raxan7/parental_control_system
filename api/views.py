@@ -22,11 +22,11 @@ class UsageDataAPI(APIView):
         try:
             # Debugging: Print token information
             auth_header = request.headers.get('Authorization', '')
-            # print(f"Auth Header: {auth_header}")
-            # print(f"User: {request.user}")
-            # print(f"User is authenticated: {request.user.is_authenticated}")
-            # print(f"User is anonymous: {isinstance(request.user, AnonymousUser)}")
-            # print(f"Request headers: {request.headers}")
+            print(f"Auth Header: {auth_header}")
+            print(f"User: {request.user}")
+            print(f"User is authenticated: {request.user.is_authenticated}")
+            print(f"User is anonymous: {isinstance(request.user, AnonymousUser)}")
+            print(f"Request headers: {request.headers}")
             
             if auth_header:
                 try:
@@ -80,10 +80,34 @@ def register_device(request):
         return Response({"error": str(e)}, status=400)
     
 
+from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework.decorators import authentication_classes
+import logging
+
+logger = logging.getLogger(__name__)
+
 @api_view(['POST'])
+@authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def sync_usage(request):
     try:
+        # Log the Authorization header
+        auth_header = request.headers.get('Authorization', '')
+        logger.debug(f"Authorization header: {auth_header}")
+        print(f"Authorization header: {auth_header}")
+
+        if auth_header.startswith("Bearer "):
+            token_str = auth_header.split(' ')[1]
+            try:
+                token = AccessToken(token_str)
+                logger.debug(f"Token payload: {token.payload}")
+                print(f"Token payload: {token.payload}")
+            except TokenError as e:
+                logger.error(f"Invalid token format or error: {str(e)}")
+                print(f"Invalid token format or error: {str(e)}")
+
         device_id = request.data.get('device_id')
         device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
 
@@ -112,11 +136,13 @@ def sync_usage(request):
         device.save()
 
         return Response({"status": "synced"})
+
     except ChildDevice.DoesNotExist:
         return Response({"error": "Device not found"}, status=404)
     except Exception as e:
         logger.error(f"Sync usage error: {e}")
         return Response({"error": str(e)}, status=400)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
