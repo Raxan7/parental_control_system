@@ -4,7 +4,36 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Child Activity Dashboard</h1>
+    {% if device %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#blockAppModal">
+        Block New App
+    </button>
+    {% endif %}
 </div>
+
+{% if device %}
+<!-- Block App Modal -->
+<div class="modal fade" id="blockAppModal" tabindex="-1" aria-labelledby="blockAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="blockAppModalLabel">Block Application</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="blockAppForm" method="post" action="{% url 'block_app' device.device_id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    {{ block_app_form.as_p }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-danger">Block App</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="row">
     <div class="col-md-6">
@@ -12,20 +41,22 @@
     </div>
     <div class="col-md-6">
         <div class="card">
-            <div class="card-header">
-                <h5>Recent Blocked Apps</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>Blocked Apps</h5>
+                {% if device %}
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshBlockedApps()">
+                    Refresh
+                </button>
+                {% endif %}
             </div>
             <div class="card-body">
-                <ul class="list-group">
-                    {% for app in blocked_apps %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ app.app_name }}
-                        <span class="badge bg-danger rounded-pill">Blocked</span>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item">No apps blocked</li>
-                    {% endfor %}
-                </ul>
+                <div id="blockedAppsList">
+                    {% if device %}
+                        {% include 'parent_ui/partials/_blocked_apps_list.html' %}
+                    {% else %}
+                        <div class="alert alert-info">No device registered yet</div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
@@ -36,4 +67,41 @@
         {% include 'parent_ui/partials/_usage_charts.html' %}
     </div>
 </div>
+
+{% if device %}
+<script>
+function refreshBlockedApps() {
+    fetch("{% url 'get_blocked_apps' device.device_id %}")
+        .then(response => response.json())
+        .then(data => {
+            // Update the blocked apps list
+            document.getElementById('blockedAppsList').innerHTML = data.blocked_apps
+                .map(app => `<div class="list-group-item">${app}</div>`)
+                .join('');
+        });
+}
+
+// Handle form submission with AJAX
+document.getElementById('blockAppForm')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Close modal and refresh list
+            bootstrap.Modal.getInstance(document.getElementById('blockAppModal')).hide();
+            refreshBlockedApps();
+        }
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

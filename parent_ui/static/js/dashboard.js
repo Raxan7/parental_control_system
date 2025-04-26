@@ -1,145 +1,100 @@
-// parent_ui/static/js/dashboard.js
-document.addEventListener('DOMContentLoaded', function() {
-    // Get token from cookies or localStorage
-    function getToken() {
-        const cookieValue = document.cookie
-            .split('; ')
-            .find(row => row.startsWith('access_token='))
-            ?.split('=')[1];
-        return cookieValue || localStorage.getItem('access_token');
-    }
+// Create this file at parent_ui/static/js/dashboard.js
 
-    const token = getToken();
-    
+// Function to check if user is authenticated
+function isAuthenticated() {
+    const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+    return !!token;
+}
+
+// Function to get the access token
+function getAccessToken() {
+    return document.cookie
+        .split('; ')
+        .find(row => row.startsWith('access_token='))
+        ?.split('=')[1];
+}
+
+// Function to handle API requests
+async function fetchWithAuth(url, options = {}) {
+    const token = getAccessToken();
     if (!token) {
-        console.error('No authentication token found');
         window.location.href = '/login/';
         return;
     }
 
-    console.log('Token exists:', token ? '****' + token.slice(-4) : 'None');
+    const defaultOptions = {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    };
 
-    function fetchWithAuth(url, options = {}) {
-        return fetch(url, {
-            ...options,
-            headers: {
-                ...options.headers,
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken') || ''
-            },
-            credentials: 'include'
-        }).then(response => {
-            if (response.status === 401) {
-                return handleUnauthorized().then(() => fetchWithAuth(url, options));
-            }
-            return response;
-        });
-    }
-
-    function handleUnauthorized() {
-        console.log('Attempting token refresh...');
-        return fetch('/api/token/refresh/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                refresh: getCookie('refresh_token') || localStorage.getItem('refresh_token')
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.access) {
-                console.log('Token refreshed successfully');
-                document.cookie = `access_token=${data.access}; path=/; SameSite=Lax`;
-                localStorage.setItem('access_token', data.access);
-                token = data.access; // Update the token variable
-                return true;
-            }
-            throw new Error('Token refresh failed');
-        })
-        .catch(error => {
-            console.error('Refresh token error:', error);
+    try {
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        if (response.status === 401) {
+            // Token expired or invalid
             window.location.href = '/login/';
-            return false;
-        });
+            return;
+        }
+        return response;
+    } catch (error) {
+        console.error('API request failed:', error);
+        throw error;
+    }
+}
+
+// Setup event polling only if authenticated
+function setupEventPolling() {
+    if (!isAuthenticated()) {
+        return; // Don't setup polling if not authenticated
     }
 
-    // Initialize charts
-    document.querySelectorAll('.usage-chart').forEach(chart => {
-        const deviceId = chart.dataset.deviceId;
-        console.log(`Loading data for device: ${deviceId}`);
-        
-        fetchWithAuth(`/api/usage-data/${deviceId}/`)
+    function pollEvents() {
+        const token = getAccessToken();
+        if (!token) return;
+
+        fetchWithAuth(`/events/?token=${token}`)
             .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.json();
-            })
+                if (!response) return;
+                if (response.ok) {
+                    return response.text().then(text => {
+                        console.log('Raw response:', text);  // 👈 This is what the server sent back
+                        try {
+                            return JSON.parse(text);
+                        } catch (e) {
+                            console.error('Failed to parse JSON:', e);
+                            throw e;
+                        }
+                    });
+                }
+                throw new Error('Network response was not ok');
+            })        
             .then(data => {
-                console.log('Received data:', data);
-                // Initialize chart with data
-                renderChart(chart, data);
+                if (data) {
+                    // Handle the update data here
+                    console.log('Received update:', data);
+                    // Update your UI components as needed
+                }
+                // Schedule next poll
+                setTimeout(pollEvents, 5000);
             })
             .catch(error => {
-                console.error('Chart data error:', error);
-                chart.innerHTML = `<div class="alert alert-danger">Error loading data</div>`;
+                console.error('Polling error:', error);
+                // Retry after a delay
+                setTimeout(pollEvents, 10000);
             });
-    });
-
-    function renderChart(element, data) {
-        new Chart(element, {
-            type: 'doughnut',
-            data: {
-                labels: data.labels,
-                datasets: [{
-                    data: data.data,
-                    backgroundColor: [
-                        '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
-                        '#9966FF', '#FF9F40', '#8AC24A', '#607D8B'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { position: 'right' },
-                    title: {
-                        display: true,
-                        text: `Usage for ${data.device}`,
-                        font: { size: 16 }
-                    }
-                }
-            }
-        });
     }
-});
 
-// parent_ui/static/js/dashboard.js
-document.addEventListener('DOMContentLoaded', function() {
-    // Real-time updates using EventSource
-    if (typeof(EventSource) !== "undefined") {
-        const eventSource = new EventSource('/events/');
-        
-        eventSource.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            console.log("Update received:", data);
-            
-            // Here you could refresh specific parts of the page
-            // For example, update charts or notification counts
-        };
-        
-        eventSource.onerror = function(e) {
-            console.error("EventSource failed:", e);
-            eventSource.close();
-        };
-    } else {
-        console.log("Your browser doesn't support server-sent events");
+    // Start polling
+    pollEvents();
+}
+
+// Initialize when the document is ready
+document.addEventListener('DOMContentLoaded', () => {
+    if (isAuthenticated()) {
+        setupEventPolling();
     }
-    
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
 });
