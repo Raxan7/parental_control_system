@@ -249,6 +249,8 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # For production
 
+SECURE_CONTENT_TYPE_NOSNIFF = False
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
