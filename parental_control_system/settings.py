@@ -36,7 +36,8 @@ SECRET_KEY = 'django-insecure-wy*pvl(85*^g%rh&y!iag0%)0(r61u0si&!w-xk1y$097n#rv(
 DEBUG = True
 
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
-                 "www.parental.chuosmart.com"]
+                 "www.parental.chuosmart.com", "parental-control-system.onrender.com", 
+                 "www.parental-control-system.onrender.com"]
 
 
 # Application definition
