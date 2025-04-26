@@ -1,5 +1,7 @@
 asgiref==3.8.1
 Django==4.2
+django-bootstrap5==25.1
+django-chartjs==2.3.0
 django-cors-headers==4.2.0
 djangorestframework==3.14.0
 djangorestframework_simplejwt==5.5.0
@@ -7,6 +9,7 @@ ecdsa==0.19.1
 psycopg2-binary==2.9.6
 pyasn1==0.6.1
 PyJWT==2.9.0
+PyMySQL==1.1.1
 python-jose==3.3.0
 pytz==2025.2
 rsa==4.9
