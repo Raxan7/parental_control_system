@@ -81,6 +81,34 @@ document.addEventListener('DOMContentLoaded', function() {
         loadChartData('{% url "usage_data_api" device_id=devices.0.device_id %}');
     {% endif %}
 
+    async function fetchWithAuth(url, options = {}) {
+        const token = getAccessToken();
+        if (!token) {
+            window.location.href = '/login/';
+            return;
+        }
+
+        const defaultOptions = {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        };
+
+        try {
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            if (response.status === 401) {
+                // Token expired or invalid
+                window.location.href = '/login/';
+                return;
+            }
+            return response;
+        } catch (error) {
+            console.error('API request failed:', error);
+            throw error;
+        }
+    }
+
     // Function to load data via AJAX
     function loadChartData(url) {
         fetchWithAuth(url)
