@@ -37,7 +37,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
                  "www.parental.chuosmart.com", "parental-control-system.onrender.com", 
-                 "www.parental-control-system.onrender.com"]
+                 "www.parental-control-system.onrender.com", "pcs-4ngp.onrender.com"]
 
 
 # Application definition
