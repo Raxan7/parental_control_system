@@ -1,16 +1,27 @@
 from datetime import timezone, datetime
-from rest_framework.decorators import api_view, permission_classes
+import logging
+import requests
+from django.core.exceptions import ObjectDoesNotExist
+from django.shortcuts import get_object_or_404, redirect
+from django.contrib import messages
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import AnonymousUser
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from .models import ChildDevice, AppUsageLog, ScreenTimeRule, BlockedApp
-from .serializers import DeviceSerializer, AppUsageSerializer
-import logging
-from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.views import APIView
+from rest_framework import status
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from django.contrib.auth.models import AnonymousUser
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView
+)
+from .models import ChildDevice, AppUsageLog, ScreenTimeRule, BlockedApp
+from .serializers import DeviceSerializer, AppUsageSerializer, UserSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -68,25 +79,21 @@ class UsageDataAPI(APIView):
 def register_device(request):
     try:
         device_id = request.data.get('device_id')
-        if ChildDevice.objects.filter(device_id=device_id).exists():
-            return Response({"status": "device already registered"})
+        nickname = request.data.get('nickname', '')
+        
+        # Check if this parent already has this device
+        if ChildDevice.objects.filter(parent=request.user, device_id=device_id).exists():
+            return Response({"status": "device already registered to this parent"})
             
         ChildDevice.objects.create(
             parent=request.user,
-            device_id=device_id
+            device_id=device_id,
+            nickname=nickname
         )
         return Response({"status": "success"})
     except Exception as e:
         return Response({"error": str(e)}, status=400)
     
-
-from rest_framework_simplejwt.tokens import AccessToken
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.decorators import authentication_classes
-import logging
-
-logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
@@ -152,23 +159,92 @@ def get_usage_report(request, device_id):
     return Response(serializer.data)
 
 
+def parse_time(value):
+    try:
+        # Try with seconds first
+        return datetime.strptime(value, '%H:%M:%S').time()
+    except ValueError:
+        # If failed, try without seconds
+        return datetime.strptime(value, '%H:%M').time()
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def set_screen_time(request):
+    logger.info(f"API request received to set screen time. Request data: {request.data}")
+
     try:
         device = ChildDevice.objects.get(
             device_id=request.data.get('device_id'),
             parent=request.user
         )
-        ScreenTimeRule.objects.update_or_create(
-            device=device,
-            defaults={
-                'daily_limit_minutes': request.data.get('daily_limit_minutes', 120)
-            }
-        )
-        return Response({"status": "updated"})
+        logger.debug(f"Found device: {device}")
+        
+        # Parse daily limit
+        daily_limit = request.data.get('daily_limit_minutes')
+        try:
+            daily_limit = int(daily_limit) if daily_limit is not None else 120
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid daily_limit_minutes value: {daily_limit}, using default 120")
+            daily_limit = 120
+
+        # Parse bedtime start
+        bedtime_start_str = request.data.get('bedtime_start')
+        bedtime_end_str = request.data.get('bedtime_end')
+        
+        bedtime_start = None
+        bedtime_end = None
+        
+        if bedtime_start_str:
+            try:
+                if len(bedtime_start_str.split(":")) == 2:
+                    bedtime_start = datetime.strptime(bedtime_start_str, '%H:%M').time()
+                else:
+                    bedtime_start = datetime.strptime(bedtime_start_str, '%H:%M:%S').time()
+                logger.debug(f"Parsed bedtime_start: {bedtime_start}")
+            except ValueError as e:
+                logger.warning(f"Failed to parse bedtime_start: {bedtime_start_str} ({e})")
+        
+        if bedtime_end_str:
+            try:
+                if len(bedtime_end_str.split(":")) == 2:
+                    bedtime_end = datetime.strptime(bedtime_end_str, '%H:%M').time()
+                else:
+                    bedtime_end = datetime.strptime(bedtime_end_str, '%H:%M:%S').time()
+                logger.debug(f"Parsed bedtime_end: {bedtime_end}")
+            except ValueError as e:
+                logger.warning(f"Failed to parse bedtime_end: {bedtime_end_str} ({e})")
+
+        # Update or create the rule
+        # force assigning fields manually
+        rule, created = ScreenTimeRule.objects.get_or_create(device=device)
+
+        rule.daily_limit_minutes = daily_limit
+
+        if bedtime_start is not None:
+            rule.bedtime_start = bedtime_start
+        if bedtime_end is not None:
+            rule.bedtime_end = bedtime_end
+
+        rule.save()
+
+        
+        logger.info(f"Screen time rule {'created' if created else 'updated'} successfully: {rule}")
+        
+        return Response({
+            "status": "updated",
+            "daily_limit_minutes": rule.daily_limit_minutes,
+            "bedtime_start": rule.bedtime_start.strftime('%H:%M:%S') if rule.bedtime_start else None,
+            "bedtime_end": rule.bedtime_end.strftime('%H:%M:%S') if rule.bedtime_end else None
+        })
+
+    except ChildDevice.DoesNotExist:
+        logger.error(f"ChildDevice with id {request.data.get('device_id')} does not exist for user {request.user}")
+        return Response({"error": "Device not found"}, status=404)
     except Exception as e:
+        logger.exception(f"Error occurred while setting screen time: {str(e)}")
         return Response({"error": str(e)}, status=400)
+
     
 
 @api_view(['POST'])
@@ -187,16 +263,6 @@ def block_app(request):
     except Exception as e:
         return Response({"error": str(e)}, status=400)
     
-
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView
-)
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.decorators import api_view
-from .serializers import UserSerializer
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
@@ -222,3 +288,24 @@ def register(request):
         if user:
             return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_screen_time_rules(request, device_id):
+    try:
+        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+        rule = ScreenTimeRule.objects.get(device=device)
+        return Response({
+            'daily_limit_minutes': rule.daily_limit_minutes,
+            'bedtime_start': rule.bedtime_start,
+            'bedtime_end': rule.bedtime_end
+        })
+    except ScreenTimeRule.DoesNotExist:
+        return Response({
+            'daily_limit_minutes': 120,  # Default value
+            'bedtime_start': None,
+            'bedtime_end': None
+        })
+    except ChildDevice.DoesNotExist:
+        return Response({"error": "Device not found"}, status=404)

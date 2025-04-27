@@ -15,4 +15,5 @@ urlpatterns = [
     path('register/', views.register, name='register'),
 
     path('usage-data/<str:device_id>/', views.UsageDataAPI.as_view(), name='usage_data_api'),
+    path('get-screen-time-rules/<str:device_id>/', views.get_screen_time_rules, name='get_screen_time_rules'),
 ]
