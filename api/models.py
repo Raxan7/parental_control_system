@@ -8,9 +8,13 @@ class CustomUser(AbstractUser):
 
 class ChildDevice(models.Model):
     parent = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
-    device_id = models.CharField(max_length=255, unique=True)
-    nickname = models.CharField(max_length=100, blank=True, null=True)  # Add this field
+    device_id = models.CharField(max_length=255)  # Removed unique=True
+    nickname = models.CharField(max_length=100, blank=True, null=True)
     last_sync = models.DateTimeField(null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('parent', 'device_id')  # Ensures a parent can't add same device twice
 
     def __str__(self):
         return self.nickname if self.nickname else self.device_id
