@@ -15,4 +15,7 @@ urlpatterns = [
 
     path('device/<str:device_id>/block-app/', views.block_app, name='block_app'),
     path('api/device/<str:device_id>/blocked-apps/', views.get_blocked_apps, name='get_blocked_apps'),
+
+    path('register/', views.register, name='register'),
+    path('register/success/', views.RegistrationSuccessView.as_view(), name='registration_success'),
 ]
