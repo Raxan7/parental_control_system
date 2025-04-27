@@ -167,10 +167,12 @@ REST_FRAMEWORK = {
 }
 
 # settings.py
+from datetime import timedelta
+
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': True,  # Important for security
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=365),   # 🔥 1 year access token
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=366),  # 🔥 1 year + 1 day refresh token
+    'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
 
@@ -195,9 +197,10 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
+    'SLIDING_TOKEN_LIFETIME': timedelta(days=365),              # 🔥 Sliding token also 1 year
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=366),      # 🔥 Refresh sliding token
 }
+
 
 # settings.py
 LOGGING = {
@@ -275,3 +278,15 @@ SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read this
 SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 CSRF_COOKIE_SECURE = False  
+
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Or your broker URL
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# settings.py
+API_BASE_URL = 'http://localhost:8080/api/'  # Adjust to your actual API base URL
