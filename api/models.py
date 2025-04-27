@@ -107,3 +107,18 @@ def log_screen_time_rule_save(sender, instance, created, **kwargs):
                 f"daily_limit_minutes={instance.daily_limit_minutes}, "
                 f"bedtime_start={instance.bedtime_start}, "
                 f"bedtime_end={instance.bedtime_end}")
+
+
+class ScreenTime(models.Model):
+    device = models.ForeignKey('ChildDevice', on_delete=models.CASCADE, related_name='screen_time_entries')
+    timestamp = models.DateTimeField()  # full datetime, not just date
+    minutes = models.PositiveIntegerField(default=1)  # each row represents N minutes, usually 1
+    sync_status = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('device', 'timestamp')  # One entry per device per minute
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.device.device_id} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}: {self.minutes} minutes"
