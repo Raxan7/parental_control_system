@@ -121,13 +121,20 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchWithAuth(url)
             .then(response => response.json())
             .then(data => {
+                // Pie chart (usage by app)
                 usageChart.data.labels = data.labels;
                 usageChart.data.datasets[0].data = data.data;
                 usageChart.update();
+
+                // Line chart (usage over time)
+                timeChart.data.labels = data.daily_labels;
+                timeChart.data.datasets[0].data = data.daily_data;
+                timeChart.update();
             })
             .catch(error => {
                 console.error("Failed to load chart data", error);
             });
     }
+
 });
 </script>

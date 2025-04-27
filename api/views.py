@@ -25,41 +25,38 @@ from .serializers import DeviceSerializer, AppUsageSerializer, UserSerializer
 
 logger = logging.getLogger(__name__)
 
+from collections import defaultdict
+from django.db.models import Sum
+from django.db.models.functions import TruncDate
+
 class UsageDataAPI(APIView):
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, device_id):
         try:
-            # Debugging: Print token information
-            auth_header = request.headers.get('Authorization', '')
-            print(f"Auth Header: {auth_header}")
-            print(f"User: {request.user}")
-            print(f"User is authenticated: {request.user.is_authenticated}")
-            print(f"User is anonymous: {isinstance(request.user, AnonymousUser)}")
-            print(f"Request headers: {request.headers}")
-            
-            if auth_header:
-                try:
-                    raw_token = auth_header.split(' ')[1]
-                    token = AccessToken(raw_token)
-                    print(f"Token payload: {token.payload}")
-                except (IndexError, TokenError) as e:
-                    print(f"Token parsing error: {str(e)}")
-
-            # Verify device ownership
             device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
             
-            # Process data
             apps = {}
             logs = AppUsageLog.objects.filter(device=device)
             
             for log in logs:
                 apps[log.app_name] = apps.get(log.app_name, 0) + log.duration
+
+            # Now compute screen time per day
+            daily_logs = logs.annotate(date=TruncDate('start_time')) \
+                             .values('date') \
+                             .annotate(total_duration=Sum('duration')) \
+                             .order_by('date')
             
+            daily_labels = [str(entry['date']) for entry in daily_logs]
+            daily_data = [round(entry['total_duration'] / 3600, 2) for entry in daily_logs]
+
             return Response({
-                'labels': list(apps.keys()),
-                'data': [round(v/3600, 2) for v in apps.values()],
+                'labels': list(apps.keys()),         # for pie chart
+                'data': [round(v/3600, 2) for v in apps.values()],  # for pie chart
+                'daily_labels': daily_labels,        # for line chart
+                'daily_data': daily_data,            # for line chart
                 'device': device.device_id
             })
             
@@ -73,6 +70,7 @@ class UsageDataAPI(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
