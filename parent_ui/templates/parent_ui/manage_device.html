@@ -28,7 +28,7 @@
                 <h5>Screen Time Rules</h5>
             </div>
             <div class="card-body">
-                <form method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
+                <form id="screenTimeForm" method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
                     {% csrf_token %}
                     {% bootstrap_form screen_time_form %}
                     <button type="submit" class="btn btn-primary">Update Rules</button>
@@ -50,6 +50,46 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('screenTimeForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = {
+            'daily_limit_minutes': formData.get('daily_limit_minutes'),
+            'bedtime_start': formData.get('bedtime_start'),
+            'bedtime_end': formData.get('bedtime_end'),
+            'device_id': '{{ device.device_id }}'
+        };
+        
+        fetch('{% url "update_screen_time" device_id=device.device_id %}', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Network response was not ok');
+        })
+        .then(data => {
+            if (data.status === 'updated') {
+                alert('Screen time rules updated successfully!');
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to update screen time rules');
+        });
+    });
+    </script>
 
 <div class="row mt-4">
     <div class="col-12">
