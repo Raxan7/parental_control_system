@@ -86,5 +86,24 @@ class BlockedApp(models.Model):
 class ScreenTimeRule(models.Model):
     device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE)
     daily_limit_minutes = models.PositiveIntegerField(default=120)
-    bedtime_start = models.TimeField(null=True)
-    bedtime_end = models.TimeField(null=True)
+    bedtime_start = models.TimeField(null=True, blank=True)
+    bedtime_end = models.TimeField(null=True, blank=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Rules for {self.device.device_id}"
+    
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import logging
+
+logger = logging.getLogger(__name__)
+
+@receiver(post_save, sender=ScreenTimeRule)
+def log_screen_time_rule_save(sender, instance, created, **kwargs):
+    action = "Created" if created else "Updated"
+    logger.info(f"{action} ScreenTimeRule for device {instance.device.device_id}: "
+                f"daily_limit_minutes={instance.daily_limit_minutes}, "
+                f"bedtime_start={instance.bedtime_start}, "
+                f"bedtime_end={instance.bedtime_end}")
