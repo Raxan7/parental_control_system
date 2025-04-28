@@ -1,58 +1,213 @@
 {% extends 'parent_ui/base.html' %}
-{% load static django_bootstrap5 %}
+{% load static django_bootstrap5 custom_filters %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Manage Device: {{ device.device_id }}</h1>
+    <h1 class="h2">Manage Device: {{ device.nickname|default:device.device_id }}</h1>
+    <a href="?download=pdf" class="btn btn-primary">Download PDF Report</a>
 </div>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>Device Information</h5>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    {% bootstrap_form form %}
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </form>
+<ul class="nav nav-tabs mb-4" id="deviceTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button" role="tab" aria-controls="logs" aria-selected="true">
+            Usage Logs
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="false">
+            Device Settings
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="deviceTabsContent">
+    <div class="tab-pane fade show active" id="logs" role="tabpanel" aria-labelledby="logs-tab">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>App Usage Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <canvas id="usageChart" height="300"></canvas>
+                            </div>
+                            <div class="col-md-6">
+                                <canvas id="timeChart" height="300"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>App</th>
+                                        <th>Start Time</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in logs|slice:":20" %}
+                                    <tr>
+                                        <td>{{ log.app_name }}</td>
+                                        <td>{{ log.start_time|date:"Y-m-d H:i" }}</td>
+                                        <td>{{ log.duration|div:60|floatformat:1 }} mins</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center">No usage data available</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5>Screen Time Rules</h5>
+    <div class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Device Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            {% bootstrap_form form %}
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </form>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <form id="screenTimeForm" method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
-                    {% csrf_token %}
-                    {% bootstrap_form screen_time_form %}
-                    <button type="submit" class="btn btn-primary">Update Rules</button>
-                </form>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h5>Block New App</h5>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{% url 'block_app' device_id=device.device_id %}">
-                    {% csrf_token %}
-                    {% bootstrap_form block_app_form %}
-                    <button type="submit" class="btn btn-danger">Block App</button>
-                </form>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Screen Time Rules</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="screenTimeForm" method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
+                            {% csrf_token %}
+                            {% bootstrap_form screen_time_form %}
+                            <button type="submit" class="btn btn-primary">Update Rules</button>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Block New App</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" action="{% url 'block_app' device_id=device.device_id %}">
+                            {% csrf_token %}
+                            {% bootstrap_form block_app_form %}
+                            <button type="submit" class="btn btn-danger">Block App</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<div class="row mt-4">
+    <div class="col-12">
+        <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+</div>
+
 <script>
-    document.getElementById('screenTimeForm').addEventListener('submit', function(e) {
+document.addEventListener('DOMContentLoaded', function() {
+    // Usage by app pie chart
+    const usageCtx = document.getElementById('usageChart').getContext('2d');
+    const usageChart = new Chart(usageCtx, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for app in usage_by_app %}
+                    "{{ app.app_name }}"{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for app in usage_by_app %}
+                        {{ app.total_duration|div:60|floatformat:1 }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                backgroundColor: [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
+                    '#9966FF', '#FF9F40', '#8AC24A', '#607D8B'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Usage by Application (minutes)'
+                }
+            }
+        }
+    });
+
+    // Usage over time line chart
+    const timeCtx = document.getElementById('timeChart').getContext('2d');
+    const timeChart = new Chart(timeCtx, {
+        type: 'line',
+        data: {
+            labels: [
+                {% for day in daily_usage %}
+                    "{{ day.date }}"{% if not forloop.last %},{% endif %}
+                {% endfor %}
+            ],
+            datasets: [{
+                label: 'Screen Time (hours)',
+                data: [
+                    {% for day in daily_usage %}
+                        {{ day.total_duration|div:3600|floatformat:2 }}{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                borderColor: '#36A2EB',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                title: {
+                    display: true,
+                    text: 'Daily Usage Trend'
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Hours'
+                    }
+                }
+            }
+        }
+    });
+
+    // Screen time form handling
+    document.getElementById('screenTimeForm')?.addEventListener('submit', function(e) {
         e.preventDefault();
         
         const formData = new FormData(this);
@@ -63,7 +218,7 @@
             'device_id': '{{ device.device_id }}'
         };
         
-        fetch('{% url "update_screen_time" device_id=device.device_id %}', {
+        fetch(this.action, {
             method: 'POST',
             body: JSON.stringify(data),
             headers: {
@@ -89,11 +244,6 @@
             alert('Failed to update screen time rules');
         });
     });
-    </script>
-
-<div class="row mt-4">
-    <div class="col-12">
-        <a href="{% url 'parent_dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
-    </div>
-</div>
+});
+</script>
 {% endblock %}

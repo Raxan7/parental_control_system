@@ -37,23 +37,10 @@ class ParentDashboardView(TemplateView):
             context['devices'] = ChildDevice.objects.filter(parent=user)
         else:
             context['devices'] = []
-
-        # Get usage data for the last 7 days
-        usage_data = []
-        for device in context['devices']:
-            logs = AppUsageLog.objects.filter(
-                device=device,
-                start_time__gte=timezone.now() - timedelta(days=7)
-            )
-            usage_data.append({
-                'device': device,
-                'logs': logs
-            })
-        context['block_app_form'] = BlockAppForm()
-        context['usage_data'] = usage_data
+        
         context['blocked_apps'] = BlockedApp.objects.filter(device__parent=user)
         context['screen_rules'] = ScreenTimeRule.objects.filter(device__parent=user)
-
+        
         return context
 
 
@@ -67,10 +54,34 @@ def event_stream(request):
     return StreamingHttpResponse(event_generator(), content_type='text/event-stream')
 
 
+from django.db.models import Sum
+from django.http import HttpResponse
+from reportlab.pdfgen import canvas
+from io import BytesIO
+from datetime import datetime
+
 @login_required
 def manage_device(request, device_id):
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
-
+    
+    # Get usage data for this specific device only
+    logs = AppUsageLog.objects.filter(
+        device=device,
+        start_time__gte=timezone.now() - timedelta(days=7)
+    )
+    
+    # Prepare data for charts
+    usage_by_app = logs.values('app_name').annotate(
+        total_duration=Sum('duration')
+    ).order_by('-total_duration')
+    
+    # Daily usage data
+    daily_usage = logs.extra(
+        {'date': "date(start_time)"}
+    ).values('date').annotate(
+        total_duration=Sum('duration')
+    ).order_by('date')
+    
     if request.method == 'POST':
         form = DeviceForm(request.POST, instance=device)
         if form.is_valid():
@@ -79,12 +90,62 @@ def manage_device(request, device_id):
     else:
         form = DeviceForm(instance=device)
 
+    # Check if PDF download was requested
+    if request.GET.get('download') == 'pdf':
+        return generate_pdf_report(device, logs)
+
     return render(request, 'parent_ui/manage_device.html', {
         'form': form,
         'device': device,
         'screen_time_form': ScreenTimeRuleForm(),
-        'block_app_form': BlockAppForm()
+        'block_app_form': BlockAppForm(),
+        'logs': logs,
+        'usage_by_app': usage_by_app,
+        'daily_usage': daily_usage,
     })
+
+def generate_pdf_report(device, logs):
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer)
+    
+    # PDF content
+    p.setFont("Helvetica-Bold", 16)
+    p.drawString(100, 800, f"Device Usage Report: {device.nickname or device.device_id}")
+    p.setFont("Helvetica", 12)
+    p.drawString(100, 780, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    
+    # Table headers
+    p.drawString(100, 750, "App Name")
+    p.drawString(300, 750, "Start Time")
+    p.drawString(400, 750, "Duration (mins)")
+    
+    # Table rows
+    y = 730
+    for log in logs.order_by('-start_time')[:50]:  # Limit to 50 most recent logs
+        p.drawString(100, y, log.app_name)
+        p.drawString(300, y, log.start_time.strftime('%Y-%m-%d %H:%M'))
+        p.drawString(400, y, f"{round(log.duration/60, 1)}")
+        y -= 20
+        if y < 50:  # Prevent running off the page
+            p.showPage()
+            y = 750
+    
+    # Summary
+    p.showPage()
+    p.setFont("Helvetica-Bold", 14)
+    p.drawString(100, 800, "Usage Summary (Last 7 Days)")
+    
+    total_usage = sum(log.duration for log in logs)
+    p.setFont("Helvetica", 12)
+    p.drawString(100, 770, f"Total screen time: {round(total_usage/3600, 2)} hours")
+    p.drawString(100, 750, f"Number of app sessions: {logs.count()}")
+    
+    p.save()
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{device.device_id}_usage_report.pdf"'
+    return response
 
 
 import logging
