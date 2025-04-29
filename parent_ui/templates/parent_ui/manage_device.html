@@ -175,7 +175,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endfor %}
             ],
             datasets: [{
-                label: 'Screen Time (hours)',
+                label: 'Screen Time (minutes)',
                 data: [
                     {% for day in daily_usage %}
                         {{ day.total_duration|div:3600|floatformat:2 }}{% if not forloop.last %},{% endif %}
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     title: {
                         display: true,
-                        text: 'Hours'
+                        text: 'Minutes'
                     }
                 }
             }
