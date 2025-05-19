@@ -57,7 +57,7 @@
                                 <tbody>
                                     {% for log in logs|slice:":20" %}
                                     <tr>
-                                        <td>{{ log.app_name }}</td>
+                                        <td>{{ log.app_name|friendly_app_name:request.user }}</td>
                                         <td>{{ log.start_time|date:"Y-m-d H:i" }}</td>
                                         <td>{{ log.duration|div:60|floatformat:1 }} mins</td>
                                     </tr>
@@ -138,13 +138,13 @@ document.addEventListener('DOMContentLoaded', function() {
         data: {
             labels: [
                 {% for app in usage_by_app %}
-                    "{{ app.app_name }}"{% if not forloop.last %},{% endif %}
+                    "{{ app.app_name|friendly_app_name:request.user }}"{% if not forloop.last %},{% endif %}
                 {% endfor %}
             ],
             datasets: [{
                 data: [
                     {% for app in usage_by_app %}
-                        {{ app.total_duration|div:60|floatformat:1 }}{% if not forloop.last %},{% endif %}
+                        {{ app.total_duration|minutes_to_hours|floatformat:1 }}{% if not forloop.last %},{% endif %}
                     {% endfor %}
                 ],
                 backgroundColor: [
@@ -158,7 +158,20 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: {
                 title: {
                     display: true,
-                    text: 'Usage by Application (minutes)'
+                    text: 'Usage by Application (hours)'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            // Calculate the percentage
+                            const total = context.dataset.data.reduce((acc, data) => acc + parseFloat(data), 0);
+                            const value = context.raw;
+                            const percentage = Math.round((value / total) * 100);
+                            
+                            // Display both the value and percentage
+                            return `${context.label}: ${value} hrs (${percentage}%)`;
+                        }
+                    }
                 }
             }
         }

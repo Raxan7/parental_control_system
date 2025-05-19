@@ -66,8 +66,7 @@ def manage_device(request, device_id):
     
     # Get usage data for this specific device only
     logs = AppUsageLog.objects.filter(
-        device=device,
-        start_time__gte=timezone.now() - timedelta(days=7)
+        device=device
     )
     
     # Prepare data for charts
@@ -94,7 +93,7 @@ def manage_device(request, device_id):
     if request.GET.get('download') == 'pdf':
         return generate_pdf_report(device, logs)
 
-    return render(request, 'parent_ui/manage_device.html', {
+    return render(request, 'parent_ui/manage_device.html', context={
         'form': form,
         'device': device,
         'screen_time_form': ScreenTimeRuleForm(),
