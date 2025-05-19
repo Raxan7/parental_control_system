@@ -1,0 +1,327 @@
+{% extends 'parent_ui/base.html' %}
+{% load static django_bootstrap5 custom_filters %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">App Blocking for {{ device.nickname|default:device.device_id }}</h1>
+    <div>
+        <a href="{% url 'manage_device' device_id=device.device_id %}" class="btn btn-outline-secondary">Back to Device</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Block a New App</h5>
+            </div>
+            <div class="card-body">
+                <form id="blockAppForm" method="post" action="{% url 'block_app' device_id=device.device_id %}">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            {{ block_app_form.app_name }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ block_app_form.package_name }}
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-danger w-100">Block App</button>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            {{ block_app_form.notes }}
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Currently Blocked Apps</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="blocked-apps-list">
+                    {% if blocked_apps %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>App Name</th>
+                                        <th>Blocked On</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for app in blocked_apps %}
+                                    <tr id="blocked-app-{{ app.id }}">
+                                        <td>
+                                            <strong>{{ app.app_name|friendly_app_name:request.user }}</strong>
+                                            {% if app.package_name %}
+                                            <div class="text-muted small">{{ app.package_name }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ app.blocked_at|date:"Y-m-d H:i" }}</td>
+                                        <td>
+                                            <button 
+                                                type="button" 
+                                                class="btn btn-sm btn-outline-success unblock-app-btn"
+                                                data-app-name="{{ app.app_name }}"
+                                                data-app-id="{{ app.id }}"
+                                            >
+                                                Unblock
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">No apps are currently blocked for this device.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Recently Used Apps</h5>
+                <div class="input-group mt-2">
+                    <input type="text" id="appSearchInput" class="form-control" placeholder="Search apps...">
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
+                <div class="apps-list">
+                    {% if apps %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>App Name</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for app in apps %}
+                                    <tr class="app-row" data-app-name="{{ app.name|friendly_app_name:request.user }}">
+                                        <td>
+                                            <strong>{{ app.name|friendly_app_name:request.user }}</strong>
+                                            <div class="text-muted small">{{ app.name }}</div>
+                                        </td>
+                                        <td>
+                                            {% if app.is_blocked %}
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-sm btn-outline-success toggle-block-btn"
+                                                    data-app-name="{{ app.name }}"
+                                                    data-action="unblock"
+                                                >
+                                                    Unblock
+                                                </button>
+                                            {% else %}
+                                                <button 
+                                                    type="button" 
+                                                    class="btn btn-sm btn-outline-danger toggle-block-btn"
+                                                    data-app-name="{{ app.name }}"
+                                                    data-action="block"
+                                                >
+                                                    Block
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">No app usage data available for this device.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Search functionality
+        const appSearchInput = document.getElementById('appSearchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const appRows = document.querySelectorAll('.app-row');
+        
+        appSearchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            appRows.forEach(row => {
+                const appName = row.getAttribute('data-app-name').toLowerCase();
+                if (appName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+        
+        clearSearchBtn.addEventListener('click', function() {
+            appSearchInput.value = '';
+            appRows.forEach(row => {
+                row.style.display = '';
+            });
+        });
+        
+        // Toggle block/unblock app
+        const toggleBlockBtns = document.querySelectorAll('.toggle-block-btn');
+        
+        toggleBlockBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const appName = this.getAttribute('data-app-name');
+                const action = this.getAttribute('data-action');
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('app_name', appName);
+                formData.append('action', action);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                // Send AJAX request
+                fetch('{% url "toggle_block_app" device_id=device.device_id %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update button
+                        if (action === 'block') {
+                            this.textContent = 'Unblock';
+                            this.classList.remove('btn-outline-danger');
+                            this.classList.add('btn-outline-success');
+                            this.setAttribute('data-action', 'unblock');
+                            
+                            // Show success message or update UI
+                            showAlert('success', `${appName} has been blocked successfully.`);
+                            
+                            // Refresh the page to update blocked apps list
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        } else {
+                            this.textContent = 'Block';
+                            this.classList.remove('btn-outline-success');
+                            this.classList.add('btn-outline-danger');
+                            this.setAttribute('data-action', 'block');
+                            
+                            // Show success message
+                            showAlert('success', `${appName} has been unblocked successfully.`);
+                            
+                            // Refresh the page to update blocked apps list
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1500);
+                        }
+                    } else {
+                        // Show error message
+                        showAlert('danger', data.message || 'An error occurred.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'An error occurred while processing your request.');
+                });
+            });
+        });
+        
+        // Handle unblock buttons in the blocked apps list
+        const unblockBtns = document.querySelectorAll('.unblock-app-btn');
+        
+        unblockBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const appName = this.getAttribute('data-app-name');
+                const appId = this.getAttribute('data-app-id');
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('app_name', appName);
+                formData.append('action', 'unblock');
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                
+                // Send AJAX request
+                fetch('{% url "toggle_block_app" device_id=device.device_id %}', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Remove row from table
+                        document.getElementById(`blocked-app-${appId}`).remove();
+                        
+                        // Show success message
+                        showAlert('success', `${appName} has been unblocked successfully.`);
+                        
+                        // If no more blocked apps, add empty message
+                        const remainingRows = document.querySelectorAll('.blocked-apps-list tbody tr');
+                        if (remainingRows.length === 0) {
+                            const emptyDiv = document.createElement('div');
+                            emptyDiv.className = 'text-center py-5';
+                            emptyDiv.innerHTML = '<p class="text-muted">No apps are currently blocked for this device.</p>';
+                            document.querySelector('.blocked-apps-list').innerHTML = '';
+                            document.querySelector('.blocked-apps-list').appendChild(emptyDiv);
+                        }
+                        
+                        // Refresh page after a short delay
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1500);
+                    } else {
+                        // Show error message
+                        showAlert('danger', data.message || 'An error occurred.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', 'An error occurred while processing your request.');
+                });
+            });
+        });
+        
+        // Function to show alert messages
+        function showAlert(type, message) {
+            const alertContainer = document.createElement('div');
+            alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
+            alertContainer.setAttribute('role', 'alert');
+            
+            alertContainer.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Insert at the top of the page
+            document.querySelector('.content-container').insertAdjacentElement('afterbegin', alertContainer);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertContainer.remove();
+            }, 5000);
+        }
+    });
+</script>
+{% endblock %}

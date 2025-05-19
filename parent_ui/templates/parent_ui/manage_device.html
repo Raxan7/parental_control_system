@@ -18,6 +18,11 @@
             Device Settings
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <a class="nav-link" href="{% url 'app_blocking' device_id=device.device_id %}">
+            App Blocking
+        </a>
+    </li>
 </ul>
 
 <div class="tab-content" id="deviceTabsContent">
@@ -111,11 +116,10 @@
                         <h5>Block New App</h5>
                     </div>
                     <div class="card-body">
-                        <form method="post" action="{% url 'block_app' device_id=device.device_id %}">
-                            {% csrf_token %}
-                            {% bootstrap_form block_app_form %}
-                            <button type="submit" class="btn btn-danger">Block App</button>
-                        </form>
+                        <p>You can block applications on this device to limit access and screen time.</p>
+                        <a href="{% url 'app_blocking' device_id=device.device_id %}" class="btn btn-danger">
+                            <i class="bi bi-shield-lock"></i> Manage App Blocking
+                        </a>
                     </div>
                 </div>
             </div>

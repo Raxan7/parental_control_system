@@ -35,13 +35,35 @@ class ScreenTimeRuleForm(forms.ModelForm):
         
 
 class BlockAppForm(forms.ModelForm):
+    app_name = forms.CharField(
+        max_length=100,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter app name (e.g., WhatsApp)'
+        })
+    )
+    
+    package_name = forms.CharField(
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter package name (e.g., com.whatsapp)'
+        })
+    )
+    
+    notes = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'placeholder': 'Reason for blocking (optional)',
+            'rows': 3
+        })
+    )
+    
     class Meta:
         model = BlockedApp
-        fields = ['app_name', 'package_name']
-        widgets = {
-            'app_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'package_name': forms.TextInput(attrs={'class': 'form-control'}),
-        }
+        fields = ['app_name', 'package_name', 'notes']
 
 class ParentRegistrationForm(UserCreationForm):
     email = forms.EmailField(required=True)

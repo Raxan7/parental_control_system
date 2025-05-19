@@ -7,6 +7,7 @@
     <title>Parental Control Dashboard</title>
     {% bootstrap_css %}
     {% bootstrap_javascript %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.min.css">
     <link rel="stylesheet" href="{% static 'css/custom.css' %}">
 </head>
@@ -18,12 +19,16 @@
             {% include 'parent_ui/partials/_sidebar.html' %}
             
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                {% block content %}{% endblock %}
+                <div class="content-container">
+                    {% bootstrap_messages %}
+                    {% block content %}{% endblock %}
+                </div>
             </main>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{% static 'js/dashboard.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>
