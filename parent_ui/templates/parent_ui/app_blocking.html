@@ -1,11 +1,106 @@
 {% extends 'parent_ui/base.html' %}
 {% load static django_bootstrap5 custom_filters %}
 
+{% block extra_css %}
+<style>
+    .stat-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .stat-card h2 {
+        font-size: 1.8rem;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+    
+    .stat-card p {
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">App Blocking for {{ device.nickname|default:device.device_id }}</h1>
     <div>
         <a href="{% url 'manage_device' device_id=device.device_id %}" class="btn btn-outline-secondary">Back to Device</a>
+    </div>
+</div>
+
+<!-- Timeframe Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Filter App Usage By Timeframe</h5>
+                <span class="badge bg-light text-primary">{{ timeframe_description }}</span>
+            </div>
+            <div class="card-body">
+                <form id="timeframeFilterForm" method="get" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="timeframeSelect" class="form-label">Select Timeframe</label>
+                        <select id="timeframeSelect" name="timeframe" class="form-select">
+                            <option value="day" {% if timeframe == 'day' %}selected{% endif %}>Last 24 Hours</option>
+                            <option value="week" {% if timeframe == 'week' %}selected{% endif %}>Last 7 Days</option>
+                            <option value="month" {% if timeframe == 'month' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="year" {% if timeframe == 'year' %}selected{% endif %}>Last 365 Days</option>
+                            <option value="custom" {% if timeframe == 'custom' %}selected{% endif %}>Custom Range</option>
+                        </select>
+                    </div>
+                    <div id="customDaysContainer" class="col-md-4" {% if timeframe != 'custom' %}style="display: none;"{% endif %}>
+                        <label for="customDays" class="form-label">Number of Days</label>
+                        <input type="number" id="customDays" name="custom_days" class="form-control" 
+                               value="{{ custom_days|default:'' }}" min="1" max="365">
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-primary" id="applyFilterBtn">
+                            <span class="spinner-border spinner-border-sm d-none" id="filterSpinner" role="status" aria-hidden="true"></span>
+                            Apply Filter
+                        </button>
+                        <a href="{% url 'app_blocking' device_id=device.device_id %}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Usage Statistics Summary -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">App Usage Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="stat-card p-3">
+                            <h2 class="text-primary">{{ apps|length }}</h2>
+                            <p class="text-muted mb-0">Apps Used</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card p-3">
+                            <h2 class="text-success">{{ total_usage }}</h2>
+                            <p class="text-muted mb-0">Total Usage</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-card p-3">
+                            <h2 class="text-warning">{{ daily_avg_usage }}</h2>
+                            <p class="text-muted mb-0">Daily Average</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -95,10 +190,22 @@
     
     <div class="col-md-6">
         <div class="card h-100">
-            <div class="card-header">
-                <h5 class="mb-0">Recently Used Apps</h5>
-                <div class="input-group mt-2">
-                    <input type="text" id="appSearchInput" class="form-control" placeholder="Search apps...">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="mb-0">Recently Used Apps</h5>
+                    <div class="small text-muted">
+                        Showing apps used in {{ timeframe_description }}
+                    </div>
+                </div>
+                <span class="badge bg-info text-white">{{ apps|length }} apps</span>
+            </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Sorting options">
+                        <button type="button" class="btn btn-outline-secondary active" id="sortByUsageBtn">Sort by Usage</button>
+                        <button type="button" class="btn btn-outline-secondary" id="sortByNameBtn">Sort by Name</button>
+                    </div>
+                    <div class="input-group" style="max-width: 300px;">
+                        <input type="text" id="appSearchInput" class="form-control form-control-sm" placeholder="Search apps...">
                     <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
                 </div>
             </div>
@@ -110,15 +217,36 @@
                                 <thead>
                                     <tr>
                                         <th>App Name</th>
+                                        <th>Usage Time</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for app in apps %}
-                                    <tr class="app-row" data-app-name="{{ app.name|friendly_app_name:request.user }}">
+                                    <tr class="app-row {% if app.recently_blocked %}table-warning{% endif %}" data-app-name="{{ app.name|friendly_app_name:request.user }}">
                                         <td>
                                             <strong>{{ app.name|friendly_app_name:request.user }}</strong>
                                             <div class="text-muted small">{{ app.name }}</div>
+                                            {% if app.recently_blocked %}
+                                            <span class="badge bg-warning text-dark small mt-1">
+                                                <i class="bi bi-exclamation-triangle-fill me-1"></i>Blocked in this period
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge rounded-pill {% if app.usage_time > 120 %}bg-danger{% elif app.usage_time > 60 %}bg-warning{% else %}bg-success{% endif %}">
+                                                {{ app.formatted_usage }}
+                                            </span>
+                                            {% if apps.0.usage_time > 0 %}
+                                            <div class="progress mt-1" style="height: 5px;">
+                                                <div class="progress-bar {% if app.usage_time > 120 %}bg-danger{% elif app.usage_time > 60 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                     role="progressbar" 
+                                                     style="width: {{ app.usage_time|default:0|floatformat:0 }}%;" 
+                                                     aria-valuenow="{{ app.usage_time|default:0|floatformat:0 }}" 
+                                                     aria-valuemin="0" 
+                                                     aria-valuemax="100"></div>
+                                            </div>
+                                            {% endif %}
                                         </td>
                                         <td>
                                             {% if app.is_blocked %}
@@ -143,6 +271,20 @@
                                         </td>
                                     </tr>
                                     {% endfor %}
+                                    
+                                    {% if apps|length == 0 %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4">
+                                            <div class="text-muted">
+                                                <i class="bi bi-info-circle me-2"></i>
+                                                No app usage data found for this timeframe.
+                                            </div>
+                                            <div class="small text-muted mt-2">
+                                                Try selecting a different timeframe or check if the device is sending usage data.
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
                                 </tbody>
                             </table>
                         </div>
@@ -162,6 +304,83 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Timeframe filter functionality
+        const timeframeFilterForm = document.getElementById('timeframeFilterForm');
+        const timeframeSelect = document.getElementById('timeframeSelect');
+        const customDaysContainer = document.getElementById('customDaysContainer');
+        const customDaysInput = document.getElementById('customDays');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        const filterSpinner = document.getElementById('filterSpinner');
+        
+        timeframeSelect.addEventListener('change', function() {
+            if (this.value === 'custom') {
+                customDaysContainer.style.display = '';
+                customDaysInput.focus();
+            } else {
+                customDaysContainer.style.display = 'none';
+            }
+        });
+        
+        timeframeFilterForm.addEventListener('submit', function(e) {
+            // Show spinner
+            filterSpinner.classList.remove('d-none');
+            applyFilterBtn.disabled = true;
+            
+            // If custom is selected but no days entered, show validation message
+            if (timeframeSelect.value === 'custom' && !customDaysInput.value) {
+                e.preventDefault();
+                alert('Please enter the number of days for the custom timeframe');
+                filterSpinner.classList.add('d-none');
+                applyFilterBtn.disabled = false;
+                return false;
+            }
+            
+            // Form is valid, continue submission
+            return true;
+        });
+        
+        // Sorting functionality
+        const sortByUsageBtn = document.getElementById('sortByUsageBtn');
+        const sortByNameBtn = document.getElementById('sortByNameBtn');
+        const appsTable = document.querySelector('.apps-list table tbody');
+        
+        // Store original order
+        const appRowsArray = Array.from(appRows);
+        
+        sortByUsageBtn.addEventListener('click', function() {
+            sortByUsageBtn.classList.add('active');
+            sortByNameBtn.classList.remove('active');
+            
+            // Get all visible rows
+            const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
+            
+            // Sort by usage time (already sorted by usage in the backend)
+            // No need to re-sort, just refresh the table order
+            visibleRows.forEach(row => {
+                appsTable.appendChild(row);
+            });
+        });
+        
+        sortByNameBtn.addEventListener('click', function() {
+            sortByNameBtn.classList.add('active');
+            sortByUsageBtn.classList.remove('active');
+            
+            // Get all visible rows
+            const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
+            
+            // Sort by name
+            visibleRows.sort((a, b) => {
+                const nameA = a.getAttribute('data-app-name').toLowerCase();
+                const nameB = b.getAttribute('data-app-name').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            // Update the table
+            visibleRows.forEach(row => {
+                appsTable.appendChild(row);
+            });
+        });
+        
         // Search functionality
         const appSearchInput = document.getElementById('appSearchInput');
         const clearSearchBtn = document.getElementById('clearSearchBtn');

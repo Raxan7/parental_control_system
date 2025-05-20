@@ -87,3 +87,15 @@ def minutes_to_hours(minutes):
         return float(minutes) / 60.0
     except (ValueError, ZeroDivisionError):
         return 0.0
+
+@register.filter
+def percentage_of(value, max_value):
+    """
+    Calculate the percentage of value compared to max_value
+    Used for progress bars in usage statistics
+    """
+    try:
+        result = (float(value) / float(max_value)) * 100
+        return min(result, 100)  # Cap at 100%
+    except (ValueError, ZeroDivisionError):
+        return 0.0

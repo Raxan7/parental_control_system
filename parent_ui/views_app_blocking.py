@@ -21,15 +21,83 @@ def app_blocking_view(request, device_id):
     # Get all blocked apps for this device
     blocked_apps = BlockedApp.objects.filter(device=device)
     
-    # Get recently used apps on the device for easy blocking
-    recent_apps = AppUsageLog.objects.filter(
-        device=device
-    ).values('app_name').distinct()
+    # Get timeframe from request parameters (default to 7 days)
+    timeframe = request.GET.get('timeframe')
+    custom_days = request.GET.get('custom_days')
+    
+    # Get the last used timeframe from the session, or default to 'week'
+    if not timeframe:
+        timeframe = request.session.get('app_blocking_timeframe', 'week')
+        custom_days = request.session.get('app_blocking_custom_days')
+    
+    # Store the current timeframe in the session for next visit
+    request.session['app_blocking_timeframe'] = timeframe
+    if custom_days:
+        request.session['app_blocking_custom_days'] = custom_days
+    
+    # Calculate the date range based on timeframe
+    end_date = timezone.now()
+    if timeframe == 'day':
+        start_date = end_date - timezone.timedelta(days=1)
+        timeframe_description = "Last 24 Hours"
+    elif timeframe == 'week':
+        start_date = end_date - timezone.timedelta(days=7)
+        timeframe_description = "Last 7 Days"
+    elif timeframe == 'month':
+        start_date = end_date - timezone.timedelta(days=30)
+        timeframe_description = "Last 30 Days"
+    elif timeframe == 'year':
+        start_date = end_date - timezone.timedelta(days=365)
+        timeframe_description = "Last 365 Days"
+    elif timeframe == 'custom' and custom_days and custom_days.isdigit():
+        days = int(custom_days)
+        start_date = end_date - timezone.timedelta(days=days)
+        timeframe_description = f"Last {days} Days"
+    else:
+        # Default to week if invalid timeframe
+        start_date = end_date - timezone.timedelta(days=7)
+        timeframe = 'week'
+        timeframe_description = "Last 7 Days"
+    
+    # Get recently used apps on the device for easy blocking within the timeframe
+    recent_apps_data = AppUsageLog.objects.filter(
+        device=device,
+        start_time__gte=start_date,
+        start_time__lte=end_date
+    )
+    
+    # Get distinct app names
+    recent_apps = recent_apps_data.values('app_name').distinct()
+    
+    # Calculate total usage time for each app
+    app_usage_totals = {}
+    for log in recent_apps_data:
+        app_name = log.app_name
+        # Calculate duration in minutes
+        if log.end_time:
+            duration = (log.end_time - log.start_time).total_seconds() / 60
+        else:
+            # If end_time is None, use current time
+            duration = (timezone.now() - log.start_time).total_seconds() / 60
+        
+        if app_name in app_usage_totals:
+            app_usage_totals[app_name] += duration
+        else:
+            app_usage_totals[app_name] = duration
     
     # Prepare app data for the template with blocked status
     app_data = []
     blocked_package_names = set([app.package_name for app in blocked_apps if app.package_name])
     blocked_app_names = set([app.app_name for app in blocked_apps])
+    
+    # Check if any apps were blocked during the selected timeframe
+    recently_blocked_apps = BlockedApp.objects.filter(
+        device=device,
+        blocked_at__gte=start_date,
+        blocked_at__lte=end_date
+    ).values_list('app_name', flat=True)
+    
+    recently_blocked_set = set(recently_blocked_apps)
     
     for app in recent_apps:
         app_name = app['app_name']
@@ -37,18 +105,64 @@ def app_blocking_view(request, device_id):
         is_blocked = (app_name in blocked_app_names or 
                     app_name in blocked_package_names)
         
+        # Check if app was recently blocked (within the selected timeframe)
+        recently_blocked = app_name in recently_blocked_set
+        
+        # Get usage time (in minutes)
+        usage_time = app_usage_totals.get(app_name, 0)
+        
+        # Format usage time
+        if usage_time < 60:
+            formatted_usage = f"{int(usage_time)} min"
+        else:
+            hours = usage_time / 60
+            formatted_usage = f"{hours:.1f} hrs"
+        
         app_data.append({
             'name': app_name,
             'is_blocked': is_blocked,
+            'recently_blocked': recently_blocked,
+            'usage_time': usage_time,  # Raw minutes for sorting
+            'formatted_usage': formatted_usage,  # For display
         })
     
-    # Sort apps by name
-    app_data.sort(key=lambda x: x['name'])
+    # Sort apps by usage time (most used first)
+    app_data.sort(key=lambda x: x['usage_time'], reverse=True)
+    
+    # Calculate usage statistics
+    total_usage_minutes = sum(app['usage_time'] for app in app_data)
+    if total_usage_minutes > 0:
+        # Format total usage time
+        if total_usage_minutes < 60:
+            total_usage_formatted = f"{int(total_usage_minutes)} minutes"
+        else:
+            total_usage_hours = total_usage_minutes / 60
+            total_usage_formatted = f"{total_usage_hours:.1f} hours"
+            
+        # Calculate daily average
+        days_in_timeframe = (end_date - start_date).days
+        if days_in_timeframe < 1:
+            days_in_timeframe = 1  # Avoid division by zero
+            
+        daily_avg_minutes = total_usage_minutes / days_in_timeframe
+        if daily_avg_minutes < 60:
+            daily_avg_formatted = f"{int(daily_avg_minutes)} minutes"
+        else:
+            daily_avg_hours = daily_avg_minutes / 60
+            daily_avg_formatted = f"{daily_avg_hours:.1f} hours"
+    else:
+        total_usage_formatted = "0 minutes"
+        daily_avg_formatted = "0 minutes"
     
     context = {
         'device': device,
         'blocked_apps': blocked_apps,
         'apps': app_data,
+        'timeframe': timeframe,
+        'custom_days': custom_days,
+        'timeframe_description': timeframe_description,
+        'total_usage': total_usage_formatted,
+        'daily_avg_usage': daily_avg_formatted,
         'block_app_form': BlockAppForm()
     }
     
