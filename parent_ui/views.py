@@ -222,7 +222,8 @@ def block_app(request, device_id):
             blocked_app.save()
 
             # Send push notification to device about the new blocked app
-            send_blocked_app_notification.delay(device.device_id, blocked_app.app_name)
+            send_blocked_app_notification.delay(device.device_id, blocked_app.app_name, blocked_app.package_name)
+            messages.success(request, f"App '{blocked_app.app_name}' has been blocked successfully.")
 
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({

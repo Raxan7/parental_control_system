@@ -16,4 +16,7 @@ urlpatterns = [
 
     path('usage-data/<str:device_id>/', views.UsageDataAPI.as_view(), name='usage_data_api'),
     path('get-screen-time-rules/<str:device_id>/', views.get_screen_time_rules, name='get_screen_time_rules'),
+    path('get_blocked_apps/<str:device_id>/', views.get_blocked_apps, name='get_blocked_apps_api'),
+    path('force_sync_blocked_apps/<str:device_id>/', views.force_sync_blocked_apps, name='force_sync_blocked_apps'),
+    path('trigger_immediate_sync/<str:device_id>/', views.trigger_immediate_sync, name='trigger_immediate_sync'),
 ]

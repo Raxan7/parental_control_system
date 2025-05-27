@@ -1,10 +1,11 @@
-from datetime import timezone, datetime
+from datetime import datetime
 import logging
 import requests
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404, redirect
 from django.contrib import messages
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -248,17 +249,83 @@ def set_screen_time(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def block_app(request):
+    print("I am a warrior fighting against app distractions!")
     try:
+        device_id = request.data.get('device_id')
+        app_name = request.data.get('app_name')
+        package_name = request.data.get('package_name', '')
+        
+        # Validate required fields
+        if not device_id or not app_name:
+            return Response(
+                {"error": "device_id and app_name are required"}, 
+                status=400
+            )
+        
+        # Get device and verify ownership
         device = ChildDevice.objects.get(
-            device_id=request.data.get('device_id'),
+            device_id=device_id,
             parent=request.user
         )
-        BlockedApp.objects.create(
+        
+        # Check if app is already blocked
+        existing_block = BlockedApp.objects.filter(
             device=device,
-            app_name=request.data.get('app_name')
+            app_name=app_name,
+            is_active=True
+        ).first()
+        
+        if existing_block:
+            logger.info(f"App {app_name} is already blocked for device {device_id}")
+            return Response({
+                "status": "already_blocked",
+                "message": f"{app_name} is already blocked",
+                "app_id": existing_block.id
+            })
+        
+        # Create new blocked app entry
+        blocked_app = BlockedApp.objects.create(
+            device=device,
+            app_name=app_name,
+            package_name=package_name,
+            blocked_by=request.user,
+            notes=f"Blocked via API at {timezone.now()}"
         )
-        return Response({"status": "app blocked"})
+        
+        logger.info(f"Created blocked app: {app_name} (Package: {package_name}) for device {device_id}")
+        
+        # Trigger immediate sync to Android device
+        from parent_ui.tasks import send_blocked_app_notification, trigger_immediate_sync
+        
+        # Send notification task asynchronously
+        send_blocked_app_notification.delay(device_id, app_name, package_name)
+        
+        # Trigger immediate sync
+        trigger_immediate_sync.delay(device_id)
+        
+        # Mark the app as synced (will be updated when device actually syncs)
+        blocked_app.last_synced = timezone.now()
+        blocked_app.save(update_fields=['last_synced'])
+        
+        logger.info(f"Successfully blocked app {app_name} and triggered device sync for {device_id}")
+        
+        return Response({
+            "status": "app_blocked",
+            "message": f"{app_name} has been blocked successfully",
+            "app_id": blocked_app.id,
+            "package_name": package_name,
+            "sync_triggered": True,
+            "blocked_at": blocked_app.blocked_at.isoformat()
+        })
+        
+    except ChildDevice.DoesNotExist:
+        logger.error(f"Device {request.data.get('device_id')} not found for user {request.user}")
+        return Response(
+            {"error": "Device not found or access denied"}, 
+            status=404
+        )
     except Exception as e:
+        logger.exception(f"Error blocking app: {str(e)}")
         return Response({"error": str(e)}, status=400)
     
 
@@ -307,3 +374,133 @@ def get_screen_time_rules(request, device_id):
         })
     except ChildDevice.DoesNotExist:
         return Response({"error": "Device not found"}, status=404)
+
+
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def get_blocked_apps(request, device_id):
+    """
+    API endpoint for Android app to get list of blocked apps for a device.
+    Returns package names so the Android app can block them correctly.
+    """
+    # Log request information for debugging
+    logger.info(f"get_blocked_apps called for device_id: {device_id}")
+    logger.info(f"Request headers: {request.headers}")
+    logger.info(f"Authenticated user: {request.user}")
+    
+    # Print to console for immediate feedback
+    print(f"get_blocked_apps: Request received for device_id={device_id}")
+    print(f"get_blocked_apps: Authorization header: {request.headers.get('Authorization', 'None')}")
+    
+    try:
+        # Get device for the authenticated user
+        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+        
+        # Get all active blocked apps for this device
+        blocked_apps = BlockedApp.objects.filter(device=device, is_active=True)
+        
+        # Extract package names - prioritize package_name over app_name
+        package_names = []
+        for app in blocked_apps:
+            if app.package_name and app.package_name.strip():
+                # Use package name if available (this is what Android needs)
+                package_names.append(app.package_name.strip())
+            else:
+                # Fallback to app name if no package name available
+                package_names.append(app.app_name)
+        
+        logger.info(f"Returning blocked apps for device {device_id}: {package_names}")
+        
+        return Response({
+            'blocked_apps': package_names,
+            'device_id': device_id,
+            'total_count': len(package_names)
+        })
+        
+    except ChildDevice.DoesNotExist:
+        logger.error(f"Device {device_id} not found for user {request.user}")
+        return Response({"error": "Device not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Error getting blocked apps for device {device_id}: {str(e)}")
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def force_sync_blocked_apps(request, device_id):
+    """
+    Force immediate sync of blocked apps for a specific device.
+    This endpoint can be called when the Android app receives a push notification
+    or wants to immediately check for updates.
+    """
+    try:
+        # Get device for the authenticated user (parent)
+        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+        
+        # Get all active blocked apps for this device
+        blocked_apps = BlockedApp.objects.filter(device=device, is_active=True)
+        
+        # Extract package names
+        package_names = []
+        for app in blocked_apps:
+            if app.package_name and app.package_name.strip():
+                package_names.append(app.package_name.strip())
+            else:
+                package_names.append(app.app_name)
+        
+        # Update last_synced timestamp for all blocked apps
+        blocked_apps.update(last_synced=timezone.now())
+        
+        logger.info(f"Force sync: Returning {len(package_names)} blocked apps for device {device_id}")
+        
+        # Log to the console for immediate feedback
+        print(f"Force sync: Device {device_id} - Blocked apps: {package_names}")
+
+        return Response({
+            'status': 'success',
+            'blocked_apps': package_names,
+            'device_id': device_id,
+            'total_count': len(package_names),
+            'synced_at': timezone.now().isoformat()
+        })
+        
+    except ChildDevice.DoesNotExist:
+        logger.error(f"Device {device_id} not found for user {request.user}")
+        return Response({"error": "Device not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Error in force sync for device {device_id}: {str(e)}")
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def trigger_immediate_sync(request, device_id):
+    """
+    Trigger immediate sync notification for a specific device.
+    This can be called from the web interface when an app is blocked/unblocked.
+    """
+    try:
+        # Verify device belongs to the authenticated user
+        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+        
+        action = request.data.get('action', 'sync')  # sync, block, unblock
+        app_name = request.data.get('app_name', '')
+        
+        logger.info(f"Triggering immediate sync for device {device_id}, action: {action}, app: {app_name}")
+        
+        # For now, just log the trigger since we're using polling
+        # In a real FCM implementation, you would send a push notification here
+        
+        return Response({
+            'status': 'success',
+            'message': f'Sync trigger sent for device {device_id}',
+            'action': action,
+            'app_name': app_name
+        })
+        
+    except ChildDevice.DoesNotExist:
+        return Response({"error": "Device not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Error triggering sync for device {device_id}: {str(e)}")
+        return Response({"error": str(e)}, status=500)

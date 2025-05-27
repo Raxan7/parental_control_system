@@ -8,8 +8,39 @@ from api.models import ChildDevice, BlockedApp, AppUsageLog
 from .forms import BlockAppForm
 from .tasks import send_blocked_app_notification
 import logging
+import requests
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+def trigger_device_sync(device_id, action, app_name=None):
+    """
+    Helper function to trigger immediate sync on the Android device
+    """
+    try:
+        # This would normally send a push notification
+        # For now, we rely on the faster polling mechanism
+        logger.info(f"Sync trigger: Device {device_id}, Action: {action}, App: {app_name}")
+        
+        # In a real implementation with FCM:
+        # if hasattr(settings, 'FCM_SERVER_KEY'):
+        #     from pyfcm import FCMNotification
+        #     push_service = FCMNotification(api_key=settings.FCM_SERVER_KEY)
+        #     push_service.notify_single_device(
+        #         registration_id=device_id,
+        #         message_title="Parental Controls Updated",
+        #         message_body=f"App blocking list updated",
+        #         data_message={
+        #             'action': action,
+        #             'app_name': app_name,
+        #             'sync_required': True
+        #         }
+        #     )
+        
+        return True
+    except Exception as e:
+        logger.error(f"Failed to trigger device sync: {str(e)}")
+        return False
 
 @login_required
 def app_blocking_view(request, device_id):
@@ -20,6 +51,7 @@ def app_blocking_view(request, device_id):
     
     # Get all blocked apps for this device
     blocked_apps = BlockedApp.objects.filter(device=device)
+    print(f"Blocked apps for device {device_id}: {blocked_apps.count()} found")
     
     # Get timeframe from request parameters (default to 7 days)
     timeframe = request.GET.get('timeframe')
@@ -209,6 +241,7 @@ def toggle_block_app(request, device_id):
             
             # Send notification to device
             send_blocked_app_notification.delay(device.device_id, app_name, package_name)
+            trigger_device_sync(device.device_id, 'block', app_name)
             
             return JsonResponse({
                 'status': 'success',
@@ -227,6 +260,8 @@ def toggle_block_app(request, device_id):
             if blocked_app:
                 blocked_app_id = blocked_app.id
                 blocked_app.delete()
+                
+                trigger_device_sync(device.device_id, 'unblock', app_name)
                 
                 return JsonResponse({
                     'status': 'success',
