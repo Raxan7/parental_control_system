@@ -61,7 +61,7 @@ class BlockedApp(models.Model):
         verbose_name_plural = "Blocked Applications"
 
     def __str__(self):
-        return f"{self.app_name} (Blocked for {self.device.device_name})"
+        return f"{self.app_name} (Blocked for {self.device})"
 
     def save(self, *args, **kwargs):
         # Ensure package_name is cleaned (remove whitespace, etc.)
