@@ -36,8 +36,8 @@ SECRET_KEY = 'django-insecure-wy*pvl(85*^g%rh&y!iag0%)0(r61u0si&!w-xk1y$097n#rv(
 DEBUG = True
 
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
-                 "www.parental.chuosmart.com", "parental-control-system.onrender.com", 
-                 "www.parental-control-system.onrender.com", "pcs-4ngp.onrender.com"]
+                 "www.parental.chuosmart.com", "parental-control-web.onrender.com", 
+                 "www.parental-control-web.onrender.com", "pcs-4ngp.onrender.com"]
 
 
 # Application definition
@@ -106,16 +106,16 @@ WSGI_APPLICATION = 'parental_control_system.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'parental_control_db',
-        'USER': 'parental_admin',
-        'PASSWORD': 'pass12345',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'parental_control_db',
+#         'USER': 'parental_admin',
+#         'PASSWORD': 'pass12345',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
 
 # DATABASES = {
 #     'default': {
@@ -131,10 +131,10 @@ DATABASES = {
 #     }
 # }
 
-# DATABASES = {
-#     'default': dj_database_url.parse("postgresql://manyerere201:exHjyP9UQFX0@ep-shy-mud-a5gs0r74.us-east-2.aws.neon."
-#                                      "tech/parental_control_db?sslmode=require")
-# }
+DATABASES = {
+    'default': dj_database_url.parse("postgresql://manyerere201:exHjyP9UQFX0@ep-shy-mud-a5gs0r74.us-east-2.aws.neon."
+                                     "tech/parental_control_db?sslmode=require")
+}
 
 
 # Password validation
