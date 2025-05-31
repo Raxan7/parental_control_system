@@ -26,9 +26,35 @@ class AppUsageLog(models.Model):
     end_time = models.DateTimeField()
     duration = models.PositiveIntegerField(help_text="Duration in seconds")
     
+    def clean(self):
+        """Validate that end_time is after start_time"""
+        from django.core.exceptions import ValidationError
+        if self.end_time and self.start_time and self.end_time <= self.start_time:
+            raise ValidationError('End time must be after start time')
+    
     def save(self, *args, **kwargs):
-        self.duration = (self.end_time - self.start_time).total_seconds()
+        # Calculate duration and ensure it's positive
+        if self.end_time and self.start_time:
+            duration_seconds = (self.end_time - self.start_time).total_seconds()
+            if duration_seconds <= 0:
+                # If duration is not positive, set to 1 second minimum
+                self.duration = 1
+            else:
+                self.duration = int(duration_seconds)
+        else:
+            self.duration = 0
+            
+        # Call clean method for validation
+        self.clean()
         super().save(*args, **kwargs)
+    
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(end_time__gt=models.F('start_time')),
+                name='end_time_after_start_time'
+            )
+        ]
 
 from django.db import models
 from django.utils import timezone
@@ -73,8 +99,8 @@ class BlockedApp(models.Model):
         """
         Triggers synchronization to the device
         """
-        from .tasks import send_blocked_app_notification
-        send_blocked_app_notification.delay(
+        from parent_ui.tasks import send_blocked_app_notification
+        send_blocked_app_notification(
             self.device.device_id,
             self.app_name,
             self.package_name

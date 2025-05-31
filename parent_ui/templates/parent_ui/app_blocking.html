@@ -26,6 +26,16 @@
 {% endblock %}
 
 {% block content %}
+<!-- Messages -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">App Blocking for {{ device.nickname|default:device.device_id }}</h1>
     <div>
@@ -111,22 +121,35 @@
                 <h5 class="mb-0">Block a New App</h5>
             </div>
             <div class="card-body">
-                <form id="blockAppForm" method="post" action="{% url 'block_app' device_id=device.device_id %}">
+                <form id="blockAppForm" method="post" action="{% url 'app_blocking' device_id=device.device_id %}">>
                     {% csrf_token %}
                     <div class="row g-3">
                         <div class="col-md-5">
+                            <label for="{{ block_app_form.app_name.id_for_label }}" class="form-label">App Name</label>
                             {{ block_app_form.app_name }}
+                            {% if block_app_form.app_name.errors %}
+                                <div class="text-danger small mt-1">{{ block_app_form.app_name.errors }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-5">
+                            <label for="{{ block_app_form.package_name.id_for_label }}" class="form-label">Package Name (Optional)</label>
                             {{ block_app_form.package_name }}
+                            {% if block_app_form.package_name.errors %}
+                                <div class="text-danger small mt-1">{{ block_app_form.package_name.errors }}</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
                             <button type="submit" class="btn btn-danger w-100">Block App</button>
                         </div>
                     </div>
                     <div class="row mt-2">
                         <div class="col-12">
+                            <label for="{{ block_app_form.notes.id_for_label }}" class="form-label">Notes (Optional)</label>
                             {{ block_app_form.notes }}
+                            {% if block_app_form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ block_app_form.notes.errors }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </form>

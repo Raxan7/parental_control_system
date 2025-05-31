@@ -37,7 +37,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
                  "www.parental.chuosmart.com", "parental-control-web.onrender.com", 
-                 "www.parental-control-web.onrender.com", "pcs-4ngp.onrender.com"]
+                 "www.parental-control-web.onrender.com", "pcs-4ngp.onrender.com", 
+                 "192.168.1.154"]
 
 
 # Application definition
@@ -280,13 +281,7 @@ SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
 CSRF_COOKIE_SECURE = False  
 
 
-# Celery Configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Or your broker URL
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
+
 
 # settings.py
 API_BASE_URL = 'http://localhost:8080/api/'  # Adjust to your actual API base URL

@@ -125,6 +125,18 @@ def sync_usage(request):
             try:
                 start_time = datetime.fromisoformat(entry.get('start_time').replace('Z', '+00:00'))
                 end_time = datetime.fromisoformat(entry.get('end_time').replace('Z', '+00:00'))
+                
+                # Validate that end_time is after start_time
+                if end_time <= start_time:
+                    logger.warning(f"Invalid time range: end_time ({end_time}) is not after start_time ({start_time}). Skipping entry: {entry}")
+                    continue  # Skip this invalid entry
+                
+                # Calculate duration to ensure it's positive
+                duration_seconds = (end_time - start_time).total_seconds()
+                if duration_seconds <= 0:
+                    logger.warning(f"Invalid duration: {duration_seconds} seconds. Skipping entry: {entry}")
+                    continue  # Skip this invalid entry
+                
                 AppUsageLog.objects.create(
                     device=device,
                     app_name=entry.get('app_name'),
@@ -297,11 +309,11 @@ def block_app(request):
         # Trigger immediate sync to Android device
         from parent_ui.tasks import send_blocked_app_notification, trigger_immediate_sync
         
-        # Send notification task asynchronously
-        send_blocked_app_notification.delay(device_id, app_name, package_name)
+        # Send notification synchronously
+        send_blocked_app_notification(device_id, app_name, package_name)
         
         # Trigger immediate sync
-        trigger_immediate_sync.delay(device_id)
+        trigger_immediate_sync(device_id)
         
         # Mark the app as synced (will be updated when device actually syncs)
         blocked_app.last_synced = timezone.now()

@@ -1,4 +1,3 @@
-from celery import shared_task
 import requests
 from django.conf import settings
 from django.utils import timezone
@@ -6,7 +5,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-@shared_task
 def send_blocked_app_notification(device_id, app_name, package_name=None):
     """
     Send a push notification to the device about a newly blocked app
@@ -28,7 +26,6 @@ def send_blocked_app_notification(device_id, app_name, package_name=None):
     except Exception as e:
         logger.error(f"Failed to send blocked app notification: {str(e)}")
 
-@shared_task
 def send_screen_time_update(device_id, daily_limit_minutes):
     """
     Send a push notification to the device about screen time limit changes
@@ -48,7 +45,6 @@ def send_screen_time_update(device_id, daily_limit_minutes):
     except Exception as e:
         logger.error(f"Failed to send screen time update: {str(e)}")
 
-@shared_task
 def send_unblocked_app_notification(device_id, app_name, package_name=None):
     """
     Send a push notification to the device about a newly unblocked app
@@ -70,11 +66,10 @@ def send_unblocked_app_notification(device_id, app_name, package_name=None):
     except Exception as e:
         logger.error(f"Failed to send unblocked app notification: {str(e)}")
 
-@shared_task
 def trigger_immediate_sync(device_id):
     """
     Trigger immediate sync for a specific device
-    This task can be called when critical changes need to be synced immediately
+    This function can be called when critical changes need to be synced immediately
     """
     try:
         logger.info(f"Triggering immediate sync for device: {device_id}")

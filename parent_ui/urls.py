@@ -6,7 +6,6 @@ from . import views_app_blocking
 urlpatterns = [
     path('device/<str:device_id>/', views.manage_device, name='manage_device'),
     path('device/<str:device_id>/screen-time/', views.update_screen_time, name='update_screen_time'),
-    path('device/<str:device_id>/block-app/', views.block_app, name='block_app'),
 
     # New app blocking interface
     path('device/<str:device_id>/app-blocking/', views_app_blocking.app_blocking_view, name='app_blocking'),

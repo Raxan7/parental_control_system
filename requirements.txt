@@ -1,14 +1,7 @@
-amqp==5.3.1
 asgiref==3.8.1
-billiard==4.2.1
-celery==5.5.2
 certifi==2025.4.26
 chardet==5.2.0
 charset-normalizer==3.4.1
-click==8.1.8
-click-didyoumean==0.3.1
-click-plugins==1.1.1
-click-repl==0.3.0
 dj-database-url==2.3.0
 Django==4.2
 django-bootstrap5==25.1
@@ -19,10 +12,8 @@ djangorestframework_simplejwt==5.5.0
 ecdsa==0.19.1
 gunicorn==23.0.0
 idna==3.10
-kombu==5.5.3
 packaging==25.0
 pillow==11.2.1
-prompt_toolkit==3.0.51
 psycopg2-binary==2.9.6
 pyasn1==0.6.1
 PyJWT==2.9.0
@@ -31,7 +22,6 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-jose==3.3.0
 pytz==2025.2
-redis==5.2.1
 reportlab==4.4.0
 requests==2.32.3
 rsa==4.9
@@ -40,5 +30,4 @@ sqlparse==0.5.3
 typing_extensions==4.13.2
 tzdata==2025.2
 urllib3==2.4.0
-vine==5.1.0
 wcwidth==0.2.13

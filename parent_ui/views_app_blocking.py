@@ -49,6 +49,36 @@ def app_blocking_view(request, device_id):
     """
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
     
+    # Handle POST request for form-based app blocking
+    if request.method == 'POST':
+        form = BlockAppForm(request.POST)
+        if form.is_valid():
+            blocked_app = form.save(commit=False)
+            blocked_app.device = device
+            blocked_app.blocked_by = request.user
+            blocked_app.save()
+
+            # Send push notification to device about the new blocked app
+            send_blocked_app_notification(device.device_id, blocked_app.app_name, blocked_app.package_name)
+            
+            # Add success message
+            from django.contrib import messages
+            messages.success(request, f"App '{blocked_app.app_name}' has been blocked successfully.")
+            
+            # Check if it's an AJAX request
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'status': 'success',
+                    'app_name': blocked_app.app_name,
+                    'blocked_at': blocked_app.blocked_at.strftime('%Y-%m-%d %H:%M')
+                })
+            
+            # For regular form submission, redirect to prevent double submission
+            return redirect('app_blocking', device_id=device_id)
+        # If form is invalid, continue to render the page with errors
+    else:
+        form = BlockAppForm()
+    
     # Get all blocked apps for this device
     blocked_apps = BlockedApp.objects.filter(device=device)
     print(f"Blocked apps for device {device_id}: {blocked_apps.count()} found")
@@ -195,7 +225,7 @@ def app_blocking_view(request, device_id):
         'timeframe_description': timeframe_description,
         'total_usage': total_usage_formatted,
         'daily_avg_usage': daily_avg_formatted,
-        'block_app_form': BlockAppForm()
+        'block_app_form': form
     }
     
     return render(request, 'parent_ui/app_blocking.html', context)
@@ -240,7 +270,7 @@ def toggle_block_app(request, device_id):
             )
             
             # Send notification to device
-            send_blocked_app_notification.delay(device.device_id, app_name, package_name)
+            send_blocked_app_notification(device.device_id, app_name, package_name)
             trigger_device_sync(device.device_id, 'block', app_name)
             
             return JsonResponse({
