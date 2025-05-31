@@ -22,4 +22,7 @@ urlpatterns = [
 
     path('register/', views.register, name='register'),
     path('register/success/', views.RegistrationSuccessView.as_view(), name='registration_success'),
+    
+    # Account settings
+    path('account/settings/', views.account_settings, name='account_settings'),
 ]

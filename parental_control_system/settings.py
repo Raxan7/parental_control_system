@@ -170,10 +170,10 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=365),   # 🔥 1 year access token
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=366),  # 🔥 1 year + 1 day refresh token
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=36500),   # 🔥 100 YEARS - effectively permanent
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=36501),  # 🔥 100 years + 1 day refresh token
+    'ROTATE_REFRESH_TOKENS': False,  # 🔥 Disable rotation to prevent token invalidation
+    'BLACKLIST_AFTER_ROTATION': False,  # 🔥 Disable blacklisting
     'UPDATE_LAST_LOGIN': True,
 
     'ALGORITHM': 'HS256',
@@ -182,7 +182,7 @@ SIMPLE_JWT = {
     'AUDIENCE': None,
     'ISSUER': None,
     'JWK_URL': None,
-    'LEEWAY': 0,
+    'LEEWAY': 86400,  # 🔥 24-hour leeway for time drift
 
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
@@ -197,8 +197,8 @@ SIMPLE_JWT = {
     'JTI_CLAIM': 'jti',
 
     'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(days=365),              # 🔥 Sliding token also 1 year
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=366),      # 🔥 Refresh sliding token
+    'SLIDING_TOKEN_LIFETIME': timedelta(days=36500),              # 🔥 Sliding token also 100 years
+    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=36501),      # 🔥 Refresh sliding token 100 years
 }
 
 

@@ -1,0 +1,212 @@
+{% extends 'parent_ui/base.html' %}
+{% load django_bootstrap5 %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="bi bi-gear"></i> Account Settings</h1>
+</div>
+
+<div class="row">
+    <!-- Account Information Card -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Account Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="account_info">
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ account_form.first_name.id_for_label }}" class="form-label">First Name</label>
+                            {{ account_form.first_name }}
+                            {% if account_form.first_name.errors %}
+                                <div class="text-danger">{{ account_form.first_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ account_form.last_name.id_for_label }}" class="form-label">Last Name</label>
+                            {{ account_form.last_name }}
+                            {% if account_form.last_name.errors %}
+                                <div class="text-danger">{{ account_form.last_name.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ account_form.email.id_for_label }}" class="form-label">Email Address</label>
+                        {{ account_form.email }}
+                        {% if account_form.email.errors %}
+                            <div class="text-danger">{{ account_form.email.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" value="{{ user.username }}" readonly>
+                        <div class="form-text">Username cannot be changed.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Update Information
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Change Password Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-lock"></i> Change Password</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_type" value="change_password">
+                    
+                    <div class="mb-3">
+                        <label for="{{ password_form.current_password.id_for_label }}" class="form-label">Current Password</label>
+                        {{ password_form.current_password }}
+                        {% if password_form.current_password.errors %}
+                            <div class="text-danger">{{ password_form.current_password.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ password_form.current_password.help_text }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ password_form.new_password1.id_for_label }}" class="form-label">New Password</label>
+                        {{ password_form.new_password1 }}
+                        {% if password_form.new_password1.errors %}
+                            <div class="text-danger">{{ password_form.new_password1.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ password_form.new_password1.help_text|safe }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ password_form.new_password2.id_for_label }}" class="form-label">Confirm New Password</label>
+                        {{ password_form.new_password2 }}
+                        {% if password_form.new_password2.errors %}
+                            <div class="text-danger">{{ password_form.new_password2.errors }}</div>
+                        {% endif %}
+                        <div class="form-text">{{ password_form.new_password2.help_text }}</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-key"></i> Change Password
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account Statistics Sidebar -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Account Overview</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-12 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-primary mb-1">{{ total_devices }}</h4>
+                            <small class="text-muted">Devices Managed</small>
+                        </div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-warning mb-1">{{ total_blocked_apps }}</h4>
+                            <small class="text-muted">Apps Blocked</small>
+                        </div>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <div class="border rounded p-3">
+                            <h4 class="text-success mb-1">{{ total_screen_rules }}</h4>
+                            <small class="text-muted">Screen Time Rules</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6 class="mb-2"><i class="bi bi-phone"></i> Your Devices</h6>
+                {% if devices %}
+                    <ul class="list-unstyled mb-0">
+                        {% for device in devices %}
+                        <li class="d-flex justify-content-between align-items-center py-1">
+                            <span>
+                                <i class="bi bi-phone-fill text-muted me-2"></i>
+                                {{ device.nickname|default:device.device_id|truncatechars:20 }}
+                            </span>
+                            <small class="text-muted">
+                                {% if device.last_sync %}
+                                    {{ device.last_sync|timesince }} ago
+                                {% else %}
+                                    Never synced
+                                {% endif %}
+                            </small>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted mb-0">No devices registered yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Account Info Card -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Username:</dt>
+                    <dd class="col-sm-7">{{ user.username }}</dd>
+                    
+                    <dt class="col-sm-5">Email:</dt>
+                    <dd class="col-sm-7">{{ user.email|default:"Not provided" }}</dd>
+                    
+                    <dt class="col-sm-5">Joined:</dt>
+                    <dd class="col-sm-7">{{ user.date_joined|date:"M d, Y" }}</dd>
+                    
+                    <dt class="col-sm-5">Last Login:</dt>
+                    <dd class="col-sm-7">
+                        {% if user.last_login %}
+                            {{ user.last_login|timesince }} ago
+                        {% else %}
+                            Never
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-hide success messages after 5 seconds
+    setTimeout(function() {
+        const alerts = document.querySelectorAll('.alert-success');
+        alerts.forEach(function(alert) {
+            const bootstrapAlert = new bootstrap.Alert(alert);
+            bootstrapAlert.close();
+        });
+    }, 5000);
+    
+    // Password confirmation form
+    const passwordForm = document.querySelector('input[value="change_password"]');
+    if (passwordForm) {
+        passwordForm.closest('form').addEventListener('submit', function(e) {
+            if (!confirm('Are you sure you want to change your password? You will need to use the new password for future logins.')) {
+                e.preventDefault();
+            }
+        });
+    }
+</script>
+{% endblock %}

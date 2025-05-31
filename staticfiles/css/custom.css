@@ -3,46 +3,27 @@
 }
 
 body {
-    padding-top: 56px; /* Adjust for fixed header */
+    padding-top: 3.5rem;
 }
 
-main {
-    margin-left: 250px; /* Adjust for sidebar width */
-    padding: 20px; /* Add padding for content */
+.sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 100;
+    padding: 3.5rem 1rem 1rem;
+    width: var(--sidebar-width);
+    background-color: #f8f9fa;
+    border-right: 1px solid #dee2e6;
 }
 
-/* Add custom styles for the sidebar and header */
-#sidebarMenu {
-    height: 100vh; /* Full height */
-    overflow-y: auto; /* Enable scrolling for long content */
-    background-color: #f8f9fa; /* Light background color */
-    border-right: 1px solid #dee2e6; /* Add a subtle border */
-}
-
-#sidebarMenu .nav-link {
-    color: #495057; /* Darker text color */
-    font-weight: 500; /* Slightly bold */
-    padding: 10px 15px; /* Add padding for better spacing */
-    transition: background-color 0.3s ease; /* Smooth hover effect */
-}
-
-#sidebarMenu .nav-link:hover {
-    background-color: #e9ecef; /* Light hover background */
-    color: #212529; /* Darker text on hover */
-}
-
-#sidebarMenu .nav-link.active {
-    background-color: #007bff; /* Highlight active link */
-    color: #fff; /* White text for active link */
-}
-
-header.navbar {
-    z-index: 1030; /* Ensure header is above other elements */
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add subtle shadow */
+.main-content {
+    margin-left: var(--sidebar-width);
 }
 
 /* Dark mode support */
-[data-bs-theme="dark"] #sidebarMenu {
+[data-bs-theme="dark"] .sidebar {
     background-color: #212529;
     border-right-color: #343a40;
 }
@@ -51,23 +32,4 @@ header.navbar {
     position: relative;
     height: 300px;
     width: 100%;
-}
-
-@media (max-width: 768px) {
-    #sidebarMenu {
-        position: fixed; /* Fix sidebar for smaller screens */
-        top: 56px; /* Adjust for header height */
-        left: 0;
-        width: 250px; /* Sidebar width */
-        transform: translateX(-100%); /* Hide sidebar by default */
-        transition: transform 0.3s ease; /* Smooth toggle effect */
-    }
-
-    #sidebarMenu.show {
-        transform: translateX(0); /* Show sidebar when toggled */
-    }
-
-    main {
-        margin-left: 0; /* Reset margin for smaller screens */
-    }
 }

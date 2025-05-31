@@ -4,7 +4,7 @@ import logging
 import time
 import requests
 
-from django.contrib.auth import login
+from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
@@ -21,7 +21,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from api.models import BlockedApp, ChildDevice, CustomUser, ScreenTimeRule, AppUsageLog
 from parental_control_system import settings
-from .forms import BlockAppForm, DeviceForm, ParentRegistrationForm, ScreenTimeRuleForm
+from .forms import BlockAppForm, DeviceForm, ParentRegistrationForm, ScreenTimeRuleForm, AccountSettingsForm, ChangePasswordForm
 from .tasks import send_blocked_app_notification
 
 logger = logging.getLogger(__name__)
@@ -337,3 +337,52 @@ def register(request):
 
 class RegistrationSuccessView(TemplateView):
     template_name = 'parent_ui/registration_success.html'
+
+
+@login_required
+def account_settings(request):
+    """Display and handle account settings updates."""
+    user = request.user
+    
+    if request.method == 'POST':
+        form_type = request.POST.get('form_type')
+        
+        if form_type == 'account_info':
+            form = AccountSettingsForm(request.POST, instance=user)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Your account information has been updated successfully.')
+                return redirect('account_settings')
+            else:
+                messages.error(request, 'Please correct the errors below.')
+        
+        elif form_type == 'change_password':
+            password_form = ChangePasswordForm(user, request.POST)
+            if password_form.is_valid():
+                password_form.save()
+                update_session_auth_hash(request, user)  # Keep user logged in after password change
+                messages.success(request, 'Your password has been changed successfully.')
+                return redirect('account_settings')
+            else:
+                messages.error(request, 'Please correct the errors in the password form.')
+    
+    # GET request or form validation failed
+    account_form = AccountSettingsForm(instance=user)
+    password_form = ChangePasswordForm(user)
+    
+    # Get some account statistics
+    devices = ChildDevice.objects.filter(parent=user)
+    total_devices = devices.count()
+    total_blocked_apps = BlockedApp.objects.filter(device__parent=user).count()
+    total_screen_rules = ScreenTimeRule.objects.filter(device__parent=user).count()
+    
+    context = {
+        'account_form': account_form,
+        'password_form': password_form,
+        'total_devices': total_devices,
+        'total_blocked_apps': total_blocked_apps,
+        'total_screen_rules': total_screen_rules,
+        'devices': devices,
+    }
+    
+    return render(request, 'parent_ui/account_settings.html', context)
