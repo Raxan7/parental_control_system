@@ -1,30 +1,62 @@
 <!-- parent_ui/templates/parent_ui/partials/_sidebar.html -->
-<nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-    <div class="position-sticky pt-3">
+<nav id="sidebarMenu" class="sidebar sidebar-expanded">
+    <div class="sidebar-sticky">
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="nav-link active" href="{% url 'parent_dashboard' %}">
-                    <i class="bi bi-speedometer2"></i> Dashboard
+                <a class="nav-link {% if request.resolver_match.url_name == 'parent_dashboard' %}active{% endif %}" 
+                   href="{% url 'parent_dashboard' %}"
+                   data-bs-toggle="tooltip" 
+                   data-bs-placement="right" 
+                   title="Dashboard">
+                    <i class="bi bi-speedometer2"></i>
+                    <span class="nav-text">Dashboard</span>
                 </a>
             </li>
-            {% for device in devices %}
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'manage_device' device_id=device.device_id %}">
-                    <i class="bi bi-phone"></i> {{ device.nickname|default:device.device_id }}
-                </a>
-            </li>
-            {% endfor %}
         </ul>
         
-        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-            <span>Settings</span>
-        </h6>
-        <ul class="nav flex-column mb-2">
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'account_settings' %}">
-                    <i class="bi bi-gear"></i> Account Settings
-                </a>
-            </li>
-        </ul>
+        {% if devices %}
+        <div class="sidebar-section">
+            <h6 class="sidebar-heading">
+                <i class="bi bi-devices"></i>
+                <span class="heading-text">Devices</span>
+            </h6>
+            <ul class="nav flex-column">
+                {% for device in devices %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'manage_device' and device.device_id in request.resolver_match.kwargs.values %}active{% endif %}" 
+                       href="{% url 'manage_device' device_id=device.device_id %}"
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="{{ device.nickname|default:device.device_id }}">
+                        <i class="bi bi-phone"></i>
+                        <span class="nav-text">{{ device.nickname|default:device.device_id|truncatechars:15 }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <div class="sidebar-section">
+            <h6 class="sidebar-heading">
+                <i class="bi bi-gear-fill"></i>
+                <span class="heading-text">Settings</span>
+            </h6>
+            <ul class="nav flex-column mb-2">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.resolver_match.url_name == 'account_settings' %}active{% endif %}" 
+                       href="{% url 'account_settings' %}"
+                       data-bs-toggle="tooltip" 
+                       data-bs-placement="right" 
+                       title="Account Settings">
+                        <i class="bi bi-person-gear"></i>
+                        <span class="nav-text">Account Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
     </div>
 </nav>
+
+<!-- Sidebar Overlay for Mobile -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>

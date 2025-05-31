@@ -1,16 +1,37 @@
 <!-- parent_ui/templates/parent_ui/partials/_header.html -->
 <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
-    <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{% url 'parent_dashboard' %}">
-        Parental Control Dashboard
-    </a>
-    <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" 
-            data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
+    <div class="d-flex align-items-center">
+        <!-- Sidebar Toggle Button -->
+        <button class="sidebar-toggle-btn d-flex align-items-center justify-content-center" 
+                type="button" 
+                id="sidebarToggle"
+                aria-controls="sidebarMenu" 
+                aria-expanded="true" 
+                aria-label="Toggle sidebar navigation">
+            <i class="bi bi-list"></i>
+        </button>
+        
+        <a class="navbar-brand" href="{% url 'parent_dashboard' %}">
+            <i class="bi bi-shield-check me-2"></i>
+            <span class="brand-text">Parental Control</span>
+        </a>
+    </div>
+    
+    <!-- Mobile Toggle Button (separate from main toggle) -->
+    <button class="navbar-toggler d-md-none" type="button" 
+            id="mobileToggle"
+            aria-controls="sidebarMenu" 
+            aria-expanded="false" 
+            aria-label="Toggle mobile navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
     
-    <div class="navbar-nav">
+    <div class="navbar-nav ms-auto">
         <div class="nav-item text-nowrap">
-            <a class="nav-link px-3" href="{% url 'logout' %}">Sign out</a>
+            <a class="nav-link px-3" href="{% url 'logout' %}">
+                <i class="bi bi-box-arrow-right me-1"></i>
+                <span class="d-none d-sm-inline">Sign out</span>
+            </a>
         </div>
     </div>
 </header>

@@ -3,34 +3,34 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="bi bi-gear"></i> Account Settings</h1>
+    <h1 class="h2"><i class="bi bi-gear me-2"></i>Account Settings</h1>
 </div>
 
-<div class="row">
+<div class="row g-3 g-lg-4">
     <!-- Account Information Card -->
-    <div class="col-md-8">
-        <div class="card mb-4">
+    <div class="col-12 col-lg-8">
+        <div class="card mb-3 mb-lg-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-person-circle"></i> Account Information</h5>
+                <h5 class="mb-0"><i class="bi bi-person-circle me-2"></i>Account Information</h5>
             </div>
             <div class="card-body">
                 <form method="post">
                     {% csrf_token %}
                     <input type="hidden" name="form_type" value="account_info">
                     
-                    <div class="row mb-3">
-                        <div class="col-md-6">
+                    <div class="row g-3 mb-3">
+                        <div class="col-12 col-md-6">
                             <label for="{{ account_form.first_name.id_for_label }}" class="form-label">First Name</label>
                             {{ account_form.first_name }}
                             {% if account_form.first_name.errors %}
-                                <div class="text-danger">{{ account_form.first_name.errors }}</div>
+                                <div class="text-danger small mt-1">{{ account_form.first_name.errors }}</div>
                             {% endif %}
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12 col-md-6">
                             <label for="{{ account_form.last_name.id_for_label }}" class="form-label">Last Name</label>
                             {{ account_form.last_name }}
                             {% if account_form.last_name.errors %}
-                                <div class="text-danger">{{ account_form.last_name.errors }}</div>
+                                <div class="text-danger small mt-1">{{ account_form.last_name.errors }}</div>
                             {% endif %}
                         </div>
                     </div>
@@ -39,27 +39,30 @@
                         <label for="{{ account_form.email.id_for_label }}" class="form-label">Email Address</label>
                         {{ account_form.email }}
                         {% if account_form.email.errors %}
-                            <div class="text-danger">{{ account_form.email.errors }}</div>
+                            <div class="text-danger small mt-1">{{ account_form.email.errors }}</div>
                         {% endif %}
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label class="form-label">Username</label>
                         <input type="text" class="form-control" value="{{ user.username }}" readonly>
                         <div class="form-text">Username cannot be changed.</div>
                     </div>
-                    
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle"></i> Update Information
-                    </button>
+
+                    <div class="d-grid d-sm-flex justify-content-sm-start">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i>
+                            Update Information
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
 
         <!-- Change Password Card -->
-        <div class="card mb-4">
+        <div class="card">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-lock"></i> Change Password</h5>
+                <h5 class="mb-0"><i class="bi bi-lock me-2"></i>Change Password</h5>
             </div>
             <div class="card-body">
                 <form method="post">
@@ -70,88 +73,110 @@
                         <label for="{{ password_form.current_password.id_for_label }}" class="form-label">Current Password</label>
                         {{ password_form.current_password }}
                         {% if password_form.current_password.errors %}
-                            <div class="text-danger">{{ password_form.current_password.errors }}</div>
+                            <div class="text-danger small mt-1">{{ password_form.current_password.errors }}</div>
                         {% endif %}
-                        <div class="form-text">{{ password_form.current_password.help_text }}</div>
+                        {% if password_form.current_password.help_text %}
+                            <div class="form-text">{{ password_form.current_password.help_text }}</div>
+                        {% endif %}
                     </div>
                     
                     <div class="mb-3">
                         <label for="{{ password_form.new_password1.id_for_label }}" class="form-label">New Password</label>
                         {{ password_form.new_password1 }}
                         {% if password_form.new_password1.errors %}
-                            <div class="text-danger">{{ password_form.new_password1.errors }}</div>
+                            <div class="text-danger small mt-1">{{ password_form.new_password1.errors }}</div>
                         {% endif %}
-                        <div class="form-text">{{ password_form.new_password1.help_text|safe }}</div>
+                        {% if password_form.new_password1.help_text %}
+                            <div class="form-text">{{ password_form.new_password1.help_text|safe }}</div>
+                        {% endif %}
                     </div>
                     
-                    <div class="mb-3">
+                    <div class="mb-4">
                         <label for="{{ password_form.new_password2.id_for_label }}" class="form-label">Confirm New Password</label>
                         {{ password_form.new_password2 }}
                         {% if password_form.new_password2.errors %}
-                            <div class="text-danger">{{ password_form.new_password2.errors }}</div>
+                            <div class="text-danger small mt-1">{{ password_form.new_password2.errors }}</div>
                         {% endif %}
-                        <div class="form-text">{{ password_form.new_password2.help_text }}</div>
+                        {% if password_form.new_password2.help_text %}
+                            <div class="form-text">{{ password_form.new_password2.help_text }}</div>
+                        {% endif %}
                     </div>
                     
-                    <button type="submit" class="btn btn-warning">
-                        <i class="bi bi-key"></i> Change Password
-                    </button>
+                    <div class="d-grid d-sm-flex justify-content-sm-start">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-key"></i>
+                            Change Password
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
-
+    
     <!-- Account Statistics Sidebar -->
-    <div class="col-md-4">
-        <div class="card mb-4">
+    <div class="col-12 col-lg-4">
+        <div class="card mb-3 mb-lg-4">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Account Overview</h6>
+                <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Account Overview</h6>
             </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-12 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-primary mb-1">{{ total_devices }}</h4>
-                            <small class="text-muted">Devices Managed</small>
+            <div class="card-body account-overview">
+                <div class="row g-2 g-sm-3 text-center">
+                    <div class="col-6 col-sm-4 col-lg-12">
+                        <div class="border rounded p-2 p-sm-3">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <i class="bi bi-phone text-primary fs-4 me-2"></i>
+                                <h4 class="text-primary mb-0">{{ total_devices }}</h4>
+                            </div>
+                            <small class="text-muted fw-medium">Devices Managed</small>
                         </div>
                     </div>
-                    <div class="col-12 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-warning mb-1">{{ total_blocked_apps }}</h4>
-                            <small class="text-muted">Apps Blocked</small>
+                    <div class="col-6 col-sm-4 col-lg-12">
+                        <div class="border rounded p-2 p-sm-3">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <i class="bi bi-shield-x text-warning fs-4 me-2"></i>
+                                <h4 class="text-warning mb-0">{{ total_blocked_apps }}</h4>
+                            </div>
+                            <small class="text-muted fw-medium">Apps Blocked</small>
                         </div>
                     </div>
-                    <div class="col-12 mb-3">
-                        <div class="border rounded p-3">
-                            <h4 class="text-success mb-1">{{ total_screen_rules }}</h4>
-                            <small class="text-muted">Screen Time Rules</small>
+                    <div class="col-12 col-sm-4 col-lg-12">
+                        <div class="border rounded p-2 p-sm-3">
+                            <div class="d-flex align-items-center justify-content-center mb-2">
+                                <i class="bi bi-clock text-success fs-4 me-2"></i>
+                                <h4 class="text-success mb-0">{{ total_screen_rules }}</h4>
+                            </div>
+                            <small class="text-muted fw-medium">Screen Time Rules</small>
                         </div>
                     </div>
                 </div>
                 
-                <hr>
+                <hr class="my-3 my-lg-4">
                 
-                <h6 class="mb-2"><i class="bi bi-phone"></i> Your Devices</h6>
+                <h6 class="mb-3"><i class="bi bi-phone me-2"></i>Your Devices</h6>
                 {% if devices %}
                     <ul class="list-unstyled mb-0">
                         {% for device in devices %}
-                        <li class="d-flex justify-content-between align-items-center py-1">
-                            <span>
-                                <i class="bi bi-phone-fill text-muted me-2"></i>
-                                {{ device.nickname|default:device.device_id|truncatechars:20 }}
-                            </span>
-                            <small class="text-muted">
+                        <li class="d-flex justify-content-between align-items-center py-2 px-0">
+                            <div class="d-flex align-items-center flex-grow-1 me-2">
+                                <i class="bi bi-phone-fill text-muted me-2 flex-shrink-0"></i>
+                                <span class="fw-medium text-truncate">{{ device.nickname|default:device.device_id|truncatechars:20 }}</span>
+                            </div>
+                            <small class="text-muted text-nowrap">
                                 {% if device.last_sync %}
-                                    {{ device.last_sync|timesince }} ago
+                                    <span class="d-none d-sm-inline">{{ device.last_sync|timesince }} ago</span>
+                                    <span class="d-sm-none">{{ device.last_sync|date:"M d" }}</span>
                                 {% else %}
-                                    Never synced
+                                    <span class="badge bg-secondary">Never</span>
                                 {% endif %}
                             </small>
                         </li>
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="text-muted mb-0">No devices registered yet.</p>
+                    <div class="text-center py-3">
+                        <i class="bi bi-phone text-muted fs-1 mb-2"></i>
+                        <p class="text-muted mb-0 small">No devices registered yet.</p>
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -159,25 +184,26 @@
         <!-- Account Info Card -->
         <div class="card">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-info-circle"></i> Account Information</h6>
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Account Information</h6>
             </div>
             <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-5">Username:</dt>
-                    <dd class="col-sm-7">{{ user.username }}</dd>
+                <dl class="row mb-0 dl-responsive d-sm-block">
+                    <dt class="col-sm-5 text-muted">Username:</dt>
+                    <dd class="col-sm-7 fw-medium">{{ user.username }}</dd>
                     
-                    <dt class="col-sm-5">Email:</dt>
-                    <dd class="col-sm-7">{{ user.email|default:"Not provided" }}</dd>
+                    <dt class="col-sm-5 text-muted">Email:</dt>
+                    <dd class="col-sm-7 fw-medium text-break">{{ user.email|default:"Not provided" }}</dd>
                     
-                    <dt class="col-sm-5">Joined:</dt>
-                    <dd class="col-sm-7">{{ user.date_joined|date:"M d, Y" }}</dd>
+                    <dt class="col-sm-5 text-muted">Joined:</dt>
+                    <dd class="col-sm-7 fw-medium">{{ user.date_joined|date:"M d, Y" }}</dd>
                     
-                    <dt class="col-sm-5">Last Login:</dt>
-                    <dd class="col-sm-7">
+                    <dt class="col-sm-5 text-muted">Last Login:</dt>
+                    <dd class="col-sm-7 fw-medium">
                         {% if user.last_login %}
-                            {{ user.last_login|timesince }} ago
+                            <span class="d-none d-sm-inline">{{ user.last_login|timesince }} ago</span>
+                            <span class="d-sm-none">{{ user.last_login|date:"M d, Y" }}</span>
                         {% else %}
-                            Never
+                            <span class="badge bg-secondary">Never</span>
                         {% endif %}
                     </dd>
                 </dl>
@@ -190,23 +216,84 @@
 
 {% block extra_js %}
 <script>
-    // Auto-hide success messages after 5 seconds
-    setTimeout(function() {
-        const alerts = document.querySelectorAll('.alert-success');
-        alerts.forEach(function(alert) {
-            const bootstrapAlert = new bootstrap.Alert(alert);
-            bootstrapAlert.close();
-        });
-    }, 5000);
-    
-    // Password confirmation form
-    const passwordForm = document.querySelector('input[value="change_password"]');
-    if (passwordForm) {
-        passwordForm.closest('form').addEventListener('submit', function(e) {
-            if (!confirm('Are you sure you want to change your password? You will need to use the new password for future logins.')) {
-                e.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced form handling
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        form.addEventListener('submit', function(e) {
+            if (submitBtn) {
+                submitBtn.classList.add('loading');
+                submitBtn.disabled = true;
+                
+                // Get form type
+                const formType = form.querySelector('input[name="form_type"]')?.value;
+                
+                if (formType === 'change_password') {
+                    if (!confirm('Are you sure you want to change your password? You will need to use the new password for future logins.')) {
+                        e.preventDefault();
+                        submitBtn.classList.remove('loading');
+                        submitBtn.disabled = false;
+                        return;
+                    }
+                }
             }
         });
+    });
+    
+    // Password strength indicator
+    const newPasswordField = document.querySelector('input[name="new_password1"]');
+    if (newPasswordField) {
+        // Create password strength indicator
+        const strengthContainer = document.createElement('div');
+        strengthContainer.className = 'password-strength mt-2';
+        strengthContainer.innerHTML = `
+            <div class="progress" style="height: 4px;">
+                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+            </div>
+            <small class="strength-text text-muted"></small>
+        `;
+        newPasswordField.parentNode.appendChild(strengthContainer);
+        
+        const progressBar = strengthContainer.querySelector('.progress-bar');
+        const strengthText = strengthContainer.querySelector('.strength-text');
+        
+        newPasswordField.addEventListener('input', function() {
+            const password = this.value;
+            const strength = calculatePasswordStrength(password);
+            updatePasswordStrength(progressBar, strengthText, strength, password.length);
+        });
     }
+    
+    function calculatePasswordStrength(password) {
+        let strength = 0;
+        if (password.length >= 8) strength += 1;
+        if (password.match(/[a-z]/)) strength += 1;
+        if (password.match(/[A-Z]/)) strength += 1;
+        if (password.match(/[0-9]/)) strength += 1;
+        if (password.match(/[^a-zA-Z0-9]/)) strength += 1;
+        return strength;
+    }
+    
+    function updatePasswordStrength(progressBar, strengthText, strength, length) {
+        const colors = ['bg-danger', 'bg-warning', 'bg-info', 'bg-success', 'bg-success'];
+        const widths = [20, 40, 60, 80, 100];
+        const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+        
+        // Remove all color classes
+        progressBar.className = 'progress-bar';
+        
+        if (length > 0 && strength > 0) {
+            progressBar.style.width = widths[strength - 1] + '%';
+            progressBar.classList.add(colors[strength - 1]);
+            strengthText.textContent = labels[strength - 1];
+            strengthText.className = `strength-text text-${colors[strength - 1].replace('bg-', '')}`;
+        } else {
+            progressBar.style.width = '0%';
+            strengthText.textContent = '';
+        }
+    }
+});
 </script>
 {% endblock %}
