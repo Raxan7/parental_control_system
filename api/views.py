@@ -137,12 +137,14 @@ def sync_usage(request):
                     logger.warning(f"Invalid duration: {duration_seconds} seconds. Skipping entry: {entry}")
                     continue  # Skip this invalid entry
                 
-                AppUsageLog.objects.create(
+                # Create the AppUsageLog instance and call save() to ensure model validation
+                app_log = AppUsageLog(
                     device=device,
                     app_name=entry.get('app_name'),
                     start_time=start_time,
                     end_time=end_time
                 )
+                app_log.save()  # This will trigger the model's save() method with validation
             except ValueError as e:
                 logger.error(f"Date/time parsing error: {e}, entry: {entry}")
                 return Response({"error": f"Invalid date/time format: {e}"}, status=400)
