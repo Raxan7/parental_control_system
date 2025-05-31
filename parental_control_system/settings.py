@@ -52,20 +52,23 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.humanize',
 
+    # Third-party apps
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-
-    'api',
-
-    'parent_ui',
     'django_bootstrap5',
     'chartjs',
+
+    # Local apps
+    'api',
+    'parent_ui',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # WhiteNoise must be after SecurityMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Add CORS middleware for API requests
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -259,9 +262,6 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-# Remove the problematic SECURE_CONTENT_TYPE_NOSNIFF setting
-# SECURE_CONTENT_TYPE_NOSNIFF = False
-
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
@@ -272,30 +272,33 @@ AUTH_USER_MODEL = 'api.CustomUser'  # Adjust app name if different
 LOGIN_URL = '/login/' 
 
 
-# Production static files configuration
+# WhiteNoise and Security Configuration
 if not DEBUG:
-    # Add WhiteNoise middleware at the correct position
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-    
-    # Static files configuration for production
-    STATIC_ROOT = BASE_DIR / 'staticfiles'
+    # Production settings
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    
-    # Ensure static files are served with correct MIME types
     WHITENOISE_USE_FINDERS = True
-    WHITENOISE_AUTOREFRESH = True
+    WHITENOISE_AUTOREFRESH = False  # Disable in production for performance
     WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
+    WHITENOISE_MAX_AGE = 31536000  # 1 year cache for static files
     
     # Security settings for production
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_REFERRER_POLICY = 'same-origin'
     
-    # Allow CDN resources
-    SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+    # HTTPS settings for production
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
 else:
-    # Development settings - disable content type checking
+    # Development settings
+    STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
     SECURE_CONTENT_TYPE_NOSNIFF = False
+    
+    # HTTP settings for development
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
 
 
 # For session authentication
@@ -303,8 +306,8 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read this
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
-CSRF_COOKIE_SECURE = False  
+
+# Note: SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE are set above based on DEBUG setting  
 
 
 
