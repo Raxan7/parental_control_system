@@ -30,10 +30,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-wy*pvl(85*^g%rh&y!iag0%)0(r61u0si&!w-xk1y$097n#rv('
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-wy*pvl(85*^g%rh&y!iag0%)0(r61u0si&!w-xk1y$097n#rv(')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
                  "www.parental.chuosmart.com", "parental-control-web.onrender.com", 
@@ -253,7 +253,14 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / 'staticfiles'  # For production
 
-SECURE_CONTENT_TYPE_NOSNIFF = False
+# Static files finders
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
+# Remove the problematic SECURE_CONTENT_TYPE_NOSNIFF setting
+# SECURE_CONTENT_TYPE_NOSNIFF = False
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -265,11 +272,30 @@ AUTH_USER_MODEL = 'api.CustomUser'  # Adjust app name if different
 LOGIN_URL = '/login/' 
 
 
-# settings.py
+# Production static files configuration
 if not DEBUG:
+    # Add WhiteNoise middleware at the correct position
+    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    
+    # Static files configuration for production
     STATIC_ROOT = BASE_DIR / 'staticfiles'
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
+    
+    # Ensure static files are served with correct MIME types
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+    WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
+    
+    # Security settings for production
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_REFERRER_POLICY = 'same-origin'
+    
+    # Allow CDN resources
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+else:
+    # Development settings - disable content type checking
+    SECURE_CONTENT_TYPE_NOSNIFF = False
 
 
 # For session authentication
