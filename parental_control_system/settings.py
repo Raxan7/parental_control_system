@@ -103,12 +103,12 @@ WSGI_APPLICATION = 'parental_control_system.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
 
 # DATABASES = {
 #     'default': {
@@ -135,10 +135,10 @@ WSGI_APPLICATION = 'parental_control_system.wsgi.application'
 #     }
 # }
 
-DATABASES = {
-    'default': dj_database_url.parse("postgresql://manyerere201:exHjyP9UQFX0@ep-shy-mud-a5gs0r74.us-east-2.aws.neon."
-                                     "tech/parental_control_db?sslmode=require")
-}
+# DATABASES = {
+#     'default': dj_database_url.parse("postgresql://manyerere201:exHjyP9UQFX0@ep-shy-mud-a5gs0r74.us-east-2.aws.neon."
+#                                      "tech/parental_control_db?sslmode=require")
+# }
 
 
 # Password validation
