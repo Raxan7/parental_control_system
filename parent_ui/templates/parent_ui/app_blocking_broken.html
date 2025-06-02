@@ -121,7 +121,7 @@
                 <h5 class="mb-0">Block a New App</h5>
             </div>
             <div class="card-body">
-                <form id="blockAppForm" method="post" action="{% url 'app_blocking' device_id=device.device_id %}">
+                <form id="blockAppForm" method="post" action="{% url 'app_blocking' device_id=device.device_id %}">>
                     {% csrf_token %}
                     <div class="row g-3">
                         <div class="col-md-5">
@@ -222,7 +222,6 @@
                 </div>
                 <span class="badge bg-info text-white">{{ apps|length }} apps</span>
             </div>
-            <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <div class="btn-group btn-group-sm" role="group" aria-label="Sorting options">
                         <button type="button" class="btn btn-outline-secondary active" id="sortByUsageBtn">Sort by Usage</button>
@@ -230,8 +229,7 @@
                     </div>
                     <div class="input-group" style="max-width: 300px;">
                         <input type="text" id="appSearchInput" class="form-control form-control-sm" placeholder="Search apps...">
-                        <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
-                    </div>
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">Clear</button>
                 </div>
             </div>
             <div class="card-body p-0" style="max-height: 500px; overflow-y: auto;">
@@ -366,6 +364,48 @@
             return true;
         });
         
+        // Sorting functionality
+        const sortByUsageBtn = document.getElementById('sortByUsageBtn');
+        const sortByNameBtn = document.getElementById('sortByNameBtn');
+        const appsTable = document.querySelector('.apps-list table tbody');
+        
+        // Store original order
+        const appRowsArray = Array.from(appRows);
+        
+        sortByUsageBtn.addEventListener('click', function() {
+            sortByUsageBtn.classList.add('active');
+            sortByNameBtn.classList.remove('active');
+            
+            // Get all visible rows
+            const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
+            
+            // Sort by usage time (already sorted by usage in the backend)
+            // No need to re-sort, just refresh the table order
+            visibleRows.forEach(row => {
+                appsTable.appendChild(row);
+            });
+        });
+        
+        sortByNameBtn.addEventListener('click', function() {
+            sortByNameBtn.classList.add('active');
+            sortByUsageBtn.classList.remove('active');
+            
+            // Get all visible rows
+            const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
+            
+            // Sort by name
+            visibleRows.sort((a, b) => {
+                const nameA = a.getAttribute('data-app-name').toLowerCase();
+                const nameB = b.getAttribute('data-app-name').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            // Update the table
+            visibleRows.forEach(row => {
+                appsTable.appendChild(row);
+            });
+        });
+        
         // Search functionality
         const appSearchInput = document.getElementById('appSearchInput');
         const clearSearchBtn = document.getElementById('clearSearchBtn');
@@ -391,48 +431,91 @@
             });
         });
         
-        // Sorting functionality
-        const sortByUsageBtn = document.getElementById('sortByUsageBtn');
-        const sortByNameBtn = document.getElementById('sortByNameBtn');
-        const appsTable = document.querySelector('.apps-list table tbody');
+        // Show alert function for any remaining AJAX calls
+        function showAlert(type, message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // Insert alert at the top of the page
+            const container = document.querySelector('.container-fluid');
+            container.insertBefore(alertDiv, container.firstChild);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                if (alertDiv && alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+                                        tableBody.innerHTML = `
+                                            <tr>
+                                                <td colspan="3" class="text-center py-4">
+                                                    <div class="text-muted">
+                                                        <i class="bi bi-check-circle me-2"></i>
+                                                        No apps are currently blocked for this device.
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }
+                                }
+                            }, 300);
+                        }
+                        
+                        // Show success message
+                        showAlert('success', `✅ ${appName} has been unblocked and deleted from blocked apps!`);
+                        
+                        // Update any corresponding buttons in the app list
+                        const appListBtn = document.querySelector(`[data-app-name="${appName}"][data-action="unblock"]`);
+                        if (appListBtn) {
+                            appListBtn.textContent = 'Block';
+                            appListBtn.classList.remove('btn-outline-success');
+                            appListBtn.classList.add('btn-outline-danger');
+                            appListBtn.setAttribute('data-action', 'block');
+                        }
+                        
+                    } else {
+                        // Show error message
+                        showAlert('danger', `❌ ${data.message || 'Failed to unblock app.'}`);
+                        
+                        // Reset button
+                        button.disabled = false;
+                        button.textContent = originalText;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('danger', `❌ An error occurred while unblocking ${appName}.`);
+                    
+                    // Reset button
+                    button.disabled = false;
+                    button.textContent = originalText;
+                });
+            });
+        });
         
-        if (sortByUsageBtn && sortByNameBtn && appsTable) {
-            // Store original order
-            const appRowsArray = Array.from(appRows);
+        // Function to show alert messages
+        function showAlert(type, message) {
+            const alertContainer = document.createElement('div');
+            alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
+            alertContainer.setAttribute('role', 'alert');
             
-            sortByUsageBtn.addEventListener('click', function() {
-                sortByUsageBtn.classList.add('active');
-                sortByNameBtn.classList.remove('active');
-                
-                // Get all visible rows
-                const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
-                
-                // Sort by usage time (already sorted by usage in the backend)
-                // No need to re-sort, just refresh the table order
-                visibleRows.forEach(row => {
-                    appsTable.appendChild(row);
-                });
-            });
+            alertContainer.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
             
-            sortByNameBtn.addEventListener('click', function() {
-                sortByNameBtn.classList.add('active');
-                sortByUsageBtn.classList.remove('active');
-                
-                // Get all visible rows
-                const visibleRows = appRowsArray.filter(row => row.style.display !== 'none');
-                
-                // Sort by name
-                visibleRows.sort((a, b) => {
-                    const nameA = a.getAttribute('data-app-name').toLowerCase();
-                    const nameB = b.getAttribute('data-app-name').toLowerCase();
-                    return nameA.localeCompare(nameB);
-                });
-                
-                // Update the table
-                visibleRows.forEach(row => {
-                    appsTable.appendChild(row);
-                });
-            });
+            // Insert at the top of the page
+            document.querySelector('.content-container').insertAdjacentElement('afterbegin', alertContainer);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                alertContainer.remove();
+            }, 5000);
         }
     });
 </script>

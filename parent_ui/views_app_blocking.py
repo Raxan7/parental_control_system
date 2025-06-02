@@ -1,6 +1,7 @@
 # View for the app blocking functionality in the parent web UI
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -234,7 +235,7 @@ def app_blocking_view(request, device_id):
 @require_POST
 def toggle_block_app(request, device_id):
     """
-    AJAX endpoint to block or unblock an app
+    Endpoint to block or unblock an app quickly - supports both AJAX and form POST
     """
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
     
@@ -242,79 +243,127 @@ def toggle_block_app(request, device_id):
     package_name = request.POST.get('package_name', '')
     action = request.POST.get('action', 'block')  # block or unblock
     
+    # Determine if this is an AJAX request
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    
     if not app_name:
-        return JsonResponse({'status': 'error', 'message': 'App name is required'}, status=400)
+        if is_ajax:
+            return JsonResponse({'status': 'error', 'message': 'App name is required'}, status=400)
+        else:
+            # For form submissions, redirect back with error message
+            messages.error(request, 'App name is required')
+            return redirect('app_blocking', device_id=device_id)
     
     try:
         if action == 'block':
-            # Check if app is already blocked
+            # Check if app is already blocked by app_name (primary identifier)
             existing_block = BlockedApp.objects.filter(
                 device=device, 
-                app_name=app_name
+                app_name=app_name,
+                is_active=True
             ).first()
             
             if existing_block:
-                # If already blocked, just return success
-                return JsonResponse({
-                    'status': 'success',
-                    'message': f'{app_name} is already blocked',
-                    'action': 'block'
-                })
+                message = f'{app_name} is already blocked'
+                if is_ajax:
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': message,
+                        'action': 'block',
+                        'app_id': existing_block.id
+                    })
+                else:
+                    messages.info(request, message)
+                    return redirect('app_blocking', device_id=device_id)
             
-            # Create new blocked app entry
+            # Create new blocked app entry - quick block similar to form
             blocked_app = BlockedApp.objects.create(
                 device=device,
                 app_name=app_name,
-                package_name=package_name,
-                blocked_by=request.user
+                package_name=package_name if package_name else app_name,  # Use app_name as fallback
+                blocked_by=request.user,
+                is_active=True
             )
             
-            # Send notification to device
-            send_blocked_app_notification(device.device_id, app_name, package_name)
+            # Trigger device sync for immediate effect
             trigger_device_sync(device.device_id, 'block', app_name)
             
-            return JsonResponse({
-                'status': 'success',
-                'message': f'{app_name} has been blocked',
-                'action': 'block',
-                'app_id': blocked_app.id
-            })
+            logger.info(f"Quick blocked app: {app_name} for device {device_id}")
+            
+            message = f'{app_name} has been blocked successfully'
+            if is_ajax:
+                return JsonResponse({
+                    'status': 'success',
+                    'message': message,
+                    'action': 'block',
+                    'app_id': blocked_app.id
+                })
+            else:
+                messages.success(request, message)
+                return redirect('app_blocking', device_id=device_id)
             
         elif action == 'unblock':
-            # Find and delete the blocked app entry
-            blocked_app = BlockedApp.objects.filter(
+            # Find and DELETE the specific blocked app entry by app_name
+            blocked_apps = BlockedApp.objects.filter(
                 device=device, 
-                app_name=app_name
-            ).first()
+                app_name=app_name,
+                is_active=True
+            )
             
-            if blocked_app:
-                blocked_app_id = blocked_app.id
-                blocked_app.delete()
+            if blocked_apps.exists():
+                # Delete all matching blocked app entries for this app
+                deleted_count = 0
+                for blocked_app in blocked_apps:
+                    blocked_app_id = blocked_app.id
+                    blocked_app.delete()  # Completely remove from database
+                    deleted_count += 1
                 
                 trigger_device_sync(device.device_id, 'unblock', app_name)
                 
-                return JsonResponse({
-                    'status': 'success',
-                    'message': f'{app_name} has been unblocked',
-                    'action': 'unblock',
-                    'app_id': blocked_app_id
-                })
+                logger.info(f"Deleted {deleted_count} blocked app entries for: {app_name} on device {device_id}")
+                
+                message = f'{app_name} has been unblocked and removed from blocked apps'
+                if is_ajax:
+                    return JsonResponse({
+                        'status': 'success',
+                        'message': message,
+                        'action': 'unblock',
+                        'deleted_count': deleted_count
+                    })
+                else:
+                    messages.success(request, message)
+                    return redirect('app_blocking', device_id=device_id)
             else:
-                return JsonResponse({
-                    'status': 'error',
-                    'message': f'{app_name} is not currently blocked',
-                    'action': 'unblock'
-                }, status=400)
+                message = f'{app_name} is not currently blocked'
+                if is_ajax:
+                    return JsonResponse({
+                        'status': 'error',
+                        'message': message,
+                        'action': 'unblock'
+                    }, status=400)
+                else:
+                    messages.warning(request, message)
+                    return redirect('app_blocking', device_id=device_id)
         
         else:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'Invalid action: {action}',
-            }, status=400)
+            message = f'Invalid action: {action}'
+            if is_ajax:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': message,
+                }, status=400)
+            else:
+                messages.error(request, message)
+                return redirect('app_blocking', device_id=device_id)
             
     except Exception as e:
-        logger.exception(f"Error in toggle_block_app: {str(e)}")
-        return JsonResponse({
-            'status': 'error',
-            'message': f'Failed to {action} app: {str(e)}',
-        }, status=500)
+        logger.exception(f"Error in toggle_block_app for {action} action on {app_name}: {str(e)}")
+        message = f'Failed to {action} app: {str(e)}'
+        if is_ajax:
+            return JsonResponse({
+                'status': 'error',
+                'message': message,
+            }, status=500)
+        else:
+            messages.error(request, message)
+            return redirect('app_blocking', device_id=device_id)
