@@ -106,8 +106,21 @@
                         <form id="screenTimeForm" method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
                             {% csrf_token %}
                             {% bootstrap_form screen_time_form %}
-                            <button type="submit" class="btn btn-primary">Update Rules</button>
+                            <button type="submit" class="btn btn-primary">
+                                <span class="btn-text">Update Rules</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            </button>
                         </form>
+                        
+                        <!-- Display current values for debugging -->
+                        <div class="mt-3 p-2 bg-light rounded">
+                            <small class="text-muted">
+                                <strong>Current Settings:</strong><br>
+                                Daily Limit: <span id="current-daily-limit">{{ screen_time_form.daily_limit_minutes.value|default:'Not set' }}</span> minutes<br>
+                                Bedtime Start: <span id="current-bedtime-start">{{ screen_time_form.bedtime_start.value|default:'Not set' }}</span><br>
+                                Bedtime End: <span id="current-bedtime-end">{{ screen_time_form.bedtime_end.value|default:'Not set' }}</span>
+                            </small>
+                        </div>
                     </div>
                 </div>
                 
@@ -224,43 +237,91 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Screen time form handling
-    document.getElementById('screenTimeForm')?.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        const data = {
-            'daily_limit_minutes': formData.get('daily_limit_minutes'),
-            'bedtime_start': formData.get('bedtime_start'),
-            'bedtime_end': formData.get('bedtime_end'),
-            'device_id': '{{ device.device_id }}'
-        };
-        
-        fetch(this.action, {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Network response was not ok');
-        })
-        .then(data => {
-            if (data.status === 'updated') {
-                alert('Screen time rules updated successfully!');
-                window.location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Failed to update screen time rules');
+    const screenTimeForm = document.getElementById('screenTimeForm');
+    if (screenTimeForm) {
+        screenTimeForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const btnText = submitBtn.querySelector('.btn-text');
+            const spinner = submitBtn.querySelector('.spinner-border');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            btnText.textContent = 'Updating...';
+            spinner.classList.remove('d-none');
+            
+            const formData = new FormData(this);
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+                if (response.redirected) {
+                    // Handle redirect response (non-AJAX form submission)
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                if (response.headers.get('content-type')?.includes('application/json')) {
+                    return response.json();
+                } else {
+                    // Handle HTML response by reloading the page
+                    window.location.reload();
+                    return;
+                }
+            })
+            .then(data => {
+                if (data && data.status === 'updated') {
+                    // Update the current settings display
+                    document.getElementById('current-daily-limit').textContent = data.daily_limit_minutes + ' minutes';
+                    document.getElementById('current-bedtime-start').textContent = data.bedtime_start || 'Not set';
+                    document.getElementById('current-bedtime-end').textContent = data.bedtime_end || 'Not set';
+                    
+                    // Show success message
+                    const alertHtml = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            ${data.message || 'Screen time rules updated successfully!'}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                    
+                    const container = document.querySelector('.tab-content');
+                    container.insertAdjacentHTML('afterbegin', alertHtml);
+                    
+                    // Reset button state
+                    submitBtn.disabled = false;
+                    btnText.textContent = 'Update Rules';
+                    spinner.classList.add('d-none');
+                } else if (data && data.error) {
+                    throw new Error(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                
+                // Show error message
+                const alertHtml = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        Failed to update screen time rules: ${error.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+                
+                const container = document.querySelector('.tab-content');
+                container.insertAdjacentHTML('afterbegin', alertHtml);
+                
+                // Reset button state
+                submitBtn.disabled = false;
+                btnText.textContent = 'Update Rules';
+                spinner.classList.add('d-none');
+            });
         });
-    });
+    }
 });
 </script>
 {% endblock %}

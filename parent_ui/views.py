@@ -172,24 +172,79 @@ import json
 
 @login_required
 def update_screen_time(request, device_id):
-    logger.info(f"Received AJAX request to update screen time for device {device_id} by user {request.user}")
+    logger.info(f"Received request to update screen time for device {device_id} by user {request.user}")
 
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
     
-    if request.method == 'POST' and request.headers.get('Content-Type') == 'application/json':
-        try:
-            data = json.loads(request.body)
-            logger.debug(f"Received JSON data: {data}")
-            
-            daily_limit_minutes = data.get('daily_limit_minutes')
-            bedtime_start = data.get('bedtime_start')
-            bedtime_end = data.get('bedtime_end')
-            
-            if not daily_limit_minutes:
-                return JsonResponse({'error': 'daily_limit_minutes is required'}, status=400)
-            
+    if request.method == 'POST':
+        # Handle both JSON and form submissions
+        if request.headers.get('Content-Type') == 'application/json':
             try:
-                response = requests.post(
+                data = json.loads(request.body)
+                logger.debug(f"Received JSON data: {data}")
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        else:
+            # Handle form submission
+            data = request.POST.dict()
+            logger.debug(f"Received form data: {data}")
+        
+        daily_limit_minutes = data.get('daily_limit_minutes')
+        bedtime_start = data.get('bedtime_start')
+        bedtime_end = data.get('bedtime_end')
+        
+        if not daily_limit_minutes:
+            error_msg = 'Daily limit is required'
+            if request.headers.get('Content-Type') == 'application/json':
+                return JsonResponse({'error': error_msg}, status=400)
+            else:
+                messages.error(request, error_msg)
+                return redirect('manage_device', device_id=device_id)
+        
+        try:
+            # Validate daily limit
+            daily_limit_minutes = int(daily_limit_minutes)
+            if daily_limit_minutes < 1 or daily_limit_minutes > 1440:
+                raise ValueError("Daily limit must be between 1 and 1440 minutes")
+            
+            # Parse time fields if provided
+            bedtime_start_time = None
+            bedtime_end_time = None
+            
+            if bedtime_start:
+                try:
+                    bedtime_start_time = datetime.strptime(bedtime_start, '%H:%M').time()
+                except ValueError:
+                    try:
+                        bedtime_start_time = datetime.strptime(bedtime_start, '%H:%M:%S').time()
+                    except ValueError:
+                        logger.warning(f"Invalid bedtime start format: {bedtime_start}")
+            
+            if bedtime_end:
+                try:
+                    bedtime_end_time = datetime.strptime(bedtime_end, '%H:%M').time()
+                except ValueError:
+                    try:
+                        bedtime_end_time = datetime.strptime(bedtime_end, '%H:%M:%S').time()
+                    except ValueError:
+                        logger.warning(f"Invalid bedtime end format: {bedtime_end}")
+            
+            # Update or create the ScreenTimeRule in the database
+            rule, created = ScreenTimeRule.objects.get_or_create(device=device)
+            rule.daily_limit_minutes = daily_limit_minutes
+            
+            if bedtime_start_time is not None:
+                rule.bedtime_start = bedtime_start_time
+            if bedtime_end_time is not None:
+                rule.bedtime_end = bedtime_end_time
+                
+            rule.save()
+            
+            logger.info(f"Screen time rule {'created' if created else 'updated'} locally: {rule}")
+            
+            # Now sync with Android app through API
+            try:
+                api_response = requests.post(
                     f'{settings.API_BASE_URL}set-screen-time/',
                     headers={
                         'Authorization': f'Bearer {request.COOKIES.get("access_token")}',
@@ -202,19 +257,53 @@ def update_screen_time(request, device_id):
                         'bedtime_end': bedtime_end
                     }
                 )
-                logger.info(f"API Response: {response.status_code} {response.text}")
+                logger.info(f"API sync response: {api_response.status_code} {api_response.text}")
                 
-                if response.status_code == 200:
-                    return JsonResponse({'status': 'updated'})
+                if api_response.status_code == 200:
+                    success_msg = 'Screen time rules updated successfully and synced to device!'
                 else:
-                    return JsonResponse({'error': 'Failed to update screen time rules'}, status=400)
+                    success_msg = 'Screen time rules updated locally. Sync to device may have failed.'
+                    logger.warning(f"API sync failed: {api_response.status_code} {api_response.text}")
+                    
             except Exception as e:
-                logger.exception("Error during API call")
-                return JsonResponse({'error': str(e)}, status=500)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+                logger.exception("Error during API sync")
+                success_msg = 'Screen time rules updated locally. Device sync failed.'
+            
+            # Return appropriate response
+            if request.headers.get('Content-Type') == 'application/json':
+                return JsonResponse({
+                    'status': 'updated',
+                    'message': success_msg,
+                    'daily_limit_minutes': rule.daily_limit_minutes,
+                    'bedtime_start': rule.bedtime_start.strftime('%H:%M') if rule.bedtime_start else None,
+                    'bedtime_end': rule.bedtime_end.strftime('%H:%M') if rule.bedtime_end else None
+                })
+            else:
+                messages.success(request, success_msg)
+                return redirect('manage_device', device_id=device_id)
+                
+        except (ValueError, TypeError) as e:
+            error_msg = f'Invalid input: {str(e)}'
+            logger.error(error_msg)
+            if request.headers.get('Content-Type') == 'application/json':
+                return JsonResponse({'error': error_msg}, status=400)
+            else:
+                messages.error(request, error_msg)
+                return redirect('manage_device', device_id=device_id)
+        except Exception as e:
+            error_msg = f'Failed to update screen time rules: {str(e)}'
+            logger.exception(error_msg)
+            if request.headers.get('Content-Type') == 'application/json':
+                return JsonResponse({'error': error_msg}, status=500)
+            else:
+                messages.error(request, error_msg)
+                return redirect('manage_device', device_id=device_id)
     
-    return JsonResponse({'error': 'Invalid request'}, status=400)
+    # Handle GET requests or invalid methods
+    if request.headers.get('Content-Type') == 'application/json':
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+    else:
+        return redirect('manage_device', device_id=device_id)
 
 
 @csrf_exempt
