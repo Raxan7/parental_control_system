@@ -89,6 +89,14 @@ def manage_device(request, device_id):
     else:
         form = DeviceForm(instance=device)
 
+    # Get or create screen time rule for this device
+    try:
+        screen_time_rule = ScreenTimeRule.objects.get(device=device)
+        screen_time_form = ScreenTimeRuleForm(instance=screen_time_rule)
+    except ScreenTimeRule.DoesNotExist:
+        # Create a default rule if none exists
+        screen_time_form = ScreenTimeRuleForm()
+
     # Check if PDF download was requested
     if request.GET.get('download') == 'pdf':
         return generate_pdf_report(device, logs)
@@ -96,7 +104,7 @@ def manage_device(request, device_id):
     return render(request, 'parent_ui/manage_device.html', context={
         'form': form,
         'device': device,
-        'screen_time_form': ScreenTimeRuleForm(),
+        'screen_time_form': screen_time_form,
         'block_app_form': BlockAppForm(),
         'logs': logs,
         'usage_by_app': usage_by_app,
