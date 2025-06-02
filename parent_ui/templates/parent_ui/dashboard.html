@@ -36,45 +36,13 @@
 {% endif %}
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-12">
         {% include 'parent_ui/partials/_device_list.html' %}
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5>Blocked Apps</h5>
-                {% if device %}
-                <button class="btn btn-sm btn-outline-primary" onclick="refreshBlockedApps()">
-                    Refresh
-                </button>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                <div id="blockedAppsList">
-                    {% if device %}
-                        {% include 'parent_ui/partials/_blocked_apps_list.html' %}
-                    {% else %}
-                        <div class="alert alert-info">No app blocked</div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
 {% if device %}
 <script>
-function refreshBlockedApps() {
-    fetch("{% url 'get_blocked_apps' device.device_id %}")
-        .then(response => response.json())
-        .then(data => {
-            // Update the blocked apps list
-            document.getElementById('blockedAppsList').innerHTML = data.blocked_apps
-                .map(app => `<div class="list-group-item">${app}</div>`)
-                .join('');
-        });
-}
-
 // Handle form submission with AJAX
 document.getElementById('blockAppForm')?.addEventListener('submit', function(e) {
     e.preventDefault();
@@ -90,9 +58,8 @@ document.getElementById('blockAppForm')?.addEventListener('submit', function(e) 
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            // Close modal and refresh list
+            // Close modal
             bootstrap.Modal.getInstance(document.getElementById('blockAppModal')).hide();
-            refreshBlockedApps();
         }
     });
 });

@@ -11,6 +11,7 @@ class ChildDevice(models.Model):
     device_id = models.CharField(max_length=255)  # Removed unique=True
     nickname = models.CharField(max_length=100, blank=True, null=True)
     last_sync = models.DateTimeField(null=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

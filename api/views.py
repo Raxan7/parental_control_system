@@ -8,6 +8,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import AnonymousUser
+from django.db import transaction, DatabaseError
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -115,50 +116,113 @@ def sync_usage(request):
                 print(f"Invalid token format or error: {str(e)}")
 
         device_id = request.data.get('device_id')
-        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
-
-        usage_data = request.data.get('usage_data', [])
-        if not isinstance(usage_data, list):
-            return Response({"error": "usage_data should be a list"}, status=400)
-
-        for entry in usage_data:
+        
+        # Use database transaction for consistency
+        with transaction.atomic():
             try:
-                start_time = datetime.fromisoformat(entry.get('start_time').replace('Z', '+00:00'))
-                end_time = datetime.fromisoformat(entry.get('end_time').replace('Z', '+00:00'))
-                
-                # Validate that end_time is after start_time
-                if end_time <= start_time:
-                    logger.warning(f"Invalid time range: end_time ({end_time}) is not after start_time ({start_time}). Skipping entry: {entry}")
-                    continue  # Skip this invalid entry
-                
-                # Calculate duration to ensure it's positive
-                duration_seconds = (end_time - start_time).total_seconds()
-                if duration_seconds <= 0:
-                    logger.warning(f"Invalid duration: {duration_seconds} seconds. Skipping entry: {entry}")
-                    continue  # Skip this invalid entry
-                
-                # Create the AppUsageLog instance and call save() to ensure model validation
-                app_log = AppUsageLog(
-                    device=device,
-                    app_name=entry.get('app_name'),
-                    start_time=start_time,
-                    end_time=end_time
-                )
-                app_log.save()  # This will trigger the model's save() method with validation
-            except ValueError as e:
-                logger.error(f"Date/time parsing error: {e}, entry: {entry}")
-                return Response({"error": f"Invalid date/time format: {e}"}, status=400)
-            except KeyError as e:
-                logger.error(f"Missing key in usage_data: {e}, entry: {entry}")
-                return Response({"error": f"Missing key: {e}"}, status=400)
+                device = ChildDevice.objects.select_for_update().get(device_id=device_id, parent=request.user)
+            except ChildDevice.DoesNotExist:
+                return Response({"error": "Device not found"}, status=404)
 
-        device.last_sync = datetime.now(timezone.utc)
-        device.save()
+            usage_data = request.data.get('usage_data', [])
+            if not isinstance(usage_data, list):
+                return Response({"error": "usage_data should be a list"}, status=400)
 
-        return Response({"status": "synced"})
+            valid_entries = 0
+            skipped_entries = 0
+            error_entries = []
 
-    except ChildDevice.DoesNotExist:
-        return Response({"error": "Device not found"}, status=404)
+            for i, entry in enumerate(usage_data):
+                try:
+                    # Validate required fields
+                    if not entry.get('app_name'):
+                        error_entries.append(f"Entry {i}: Missing app_name")
+                        skipped_entries += 1
+                        continue
+                        
+                    if not entry.get('start_time') or not entry.get('end_time'):
+                        error_entries.append(f"Entry {i}: Missing start_time or end_time")
+                        skipped_entries += 1
+                        continue
+
+                    # Parse timestamps with better error handling
+                    try:
+                        start_time_str = entry.get('start_time')
+                        end_time_str = entry.get('end_time')
+                        
+                        # Handle different timestamp formats
+                        if start_time_str.endswith('Z'):
+                            start_time_str = start_time_str.replace('Z', '+00:00')
+                        if end_time_str.endswith('Z'):
+                            end_time_str = end_time_str.replace('Z', '+00:00')
+                        
+                        start_time = datetime.fromisoformat(start_time_str)
+                        end_time = datetime.fromisoformat(end_time_str)
+                        
+                    except ValueError as e:
+                        error_entries.append(f"Entry {i}: Invalid timestamp format - {str(e)}")
+                        skipped_entries += 1
+                        continue
+                    
+                    # Validate time range with detailed logging
+                    if end_time <= start_time:
+                        logger.warning(f"Entry {i}: Invalid time range - end_time ({end_time}) <= start_time ({start_time}) for app '{entry.get('app_name')}'. Skipping.")
+                        error_entries.append(f"Entry {i}: end_time must be after start_time")
+                        skipped_entries += 1
+                        continue
+                    
+                    # Calculate and validate duration
+                    duration_seconds = (end_time - start_time).total_seconds()
+                    if duration_seconds <= 0:
+                        logger.warning(f"Entry {i}: Invalid duration ({duration_seconds}s) for app '{entry.get('app_name')}'. Skipping.")
+                        error_entries.append(f"Entry {i}: Invalid duration ({duration_seconds}s)")
+                        skipped_entries += 1
+                        continue
+                    
+                    # Additional validation: check for reasonable duration (not more than 24 hours)
+                    if duration_seconds > 86400:  # 24 hours in seconds
+                        logger.warning(f"Entry {i}: Suspiciously long duration ({duration_seconds}s) for app '{entry.get('app_name')}'. Skipping.")
+                        error_entries.append(f"Entry {i}: Duration too long ({duration_seconds}s)")
+                        skipped_entries += 1
+                        continue
+                    
+                    # Create the AppUsageLog instance
+                    app_log = AppUsageLog(
+                        device=device,
+                        app_name=entry.get('app_name'),
+                        start_time=start_time,
+                        end_time=end_time
+                    )
+                    app_log.save()
+                    valid_entries += 1
+                    
+                except Exception as e:
+                    logger.error(f"Entry {i}: Unexpected error - {str(e)}")
+                    error_entries.append(f"Entry {i}: {str(e)}")
+                    skipped_entries += 1
+
+            device.last_sync = datetime.now(timezone.utc)
+            device.save()
+
+            response_data = {
+                "status": "synced",
+                "total_entries": len(usage_data),
+                "valid_entries": valid_entries,
+                "skipped_entries": skipped_entries
+            }
+            
+            if error_entries:
+                response_data["errors"] = error_entries[:10]  # Limit to first 10 errors
+                if len(error_entries) > 10:
+                    response_data["additional_errors"] = len(error_entries) - 10
+            
+            logger.info(f"Sync completed for device {device_id}: {valid_entries} valid, {skipped_entries} skipped out of {len(usage_data)} total entries")
+            
+            return Response(response_data)
+            
+    except DatabaseError as e:
+        logger.error(f"Database error during sync for device {device_id}: {str(e)}")
+        return Response({"error": "Database error occurred"}, status=500)
     except Exception as e:
         logger.error(f"Sync usage error: {e}")
         return Response({"error": str(e)}, status=400)
@@ -517,4 +581,49 @@ def trigger_immediate_sync(request, device_id):
         return Response({"error": "Device not found"}, status=404)
     except Exception as e:
         logger.error(f"Error triggering sync for device {device_id}: {str(e)}")
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def device_status(request, device_id):
+    """
+    Handle device status requests - used as keep-alive and status check.
+    GET: Returns device status information
+    POST: Updates device status (last seen, etc.)
+    """
+    try:
+        # Get device for the authenticated user (parent)
+        device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+        
+        if request.method == 'GET':
+            # Return device status information
+            return Response({
+                'status': 'success',
+                'device_id': device_id,
+                'device_name': device.device_name,
+                'last_seen': device.last_seen.isoformat() if device.last_seen else None,
+                'is_active': True,
+                'timestamp': timezone.now().isoformat()
+            })
+        
+        elif request.method == 'POST':
+            # Update device last seen timestamp
+            device.last_seen = timezone.now()
+            device.save()
+            
+            logger.info(f"Updated device status for {device_id}")
+            
+            return Response({
+                'status': 'success',
+                'message': 'Device status updated',
+                'device_id': device_id,
+                'timestamp': timezone.now().isoformat()
+            })
+        
+    except ChildDevice.DoesNotExist:
+        logger.warning(f"Device not found for status check: {device_id}")
+        return Response({"error": "Device not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Error handling device status for {device_id}: {str(e)}")
         return Response({"error": str(e)}, status=500)
