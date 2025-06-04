@@ -16,13 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include 
-from django.contrib.auth.views import LogoutView
 from django.conf import settings
 from django.conf.urls.static import static
+from parent_ui.views import CustomLogoutView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),  # Added API URLs
     path('', include('parent_ui.urls')),
-    path('logout/', LogoutView.as_view(next_page='/login/'), name='logout'),
+    path('logout/', CustomLogoutView.as_view(next_page='/login/'), name='logout'),
 ]

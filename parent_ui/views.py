@@ -5,10 +5,10 @@ import time
 import requests
 import csv
 
-from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth import login, update_session_auth_hash, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib import messages
 from django.core import serializers
 from django.http import HttpResponseForbidden, JsonResponse, StreamingHttpResponse, HttpResponse
@@ -458,8 +458,24 @@ class ParentLoginView(LoginView):
     template_name = 'parent_ui/login.html'
 
     def form_valid(self, form):
-        response = super().form_valid(form)
         user = form.get_user()
+        
+        # Check if user's email is verified
+        if not user.is_email_verified:
+            messages.error(
+                self.request,
+                'Please verify your email address before logging in. Check your inbox for the verification email.'
+            )
+            # Add a link to resend verification email
+            messages.info(
+                self.request,
+                f'<a href="/parent/resend-verification/">Click here to resend verification email</a>',
+                extra_tags='safe'
+            )
+            return self.form_invalid(form)
+        
+        # Proceed with normal login
+        response = super().form_valid(form)
 
         # Create JWT tokens
         refresh = RefreshToken.for_user(user)
@@ -534,10 +550,18 @@ def register(request):
     if request.method == 'POST':
         form = ParentRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
             user.is_parent = True
+            user.is_active = False  # User will be activated after email verification
             user.save()
-            login(request, user)
+            
+            # Send verification email
+            from .email_utils import send_verification_email
+            if send_verification_email(user, request):
+                messages.success(request, 'Registration successful! Please check your email to verify your account.')
+            else:
+                messages.warning(request, 'Registration successful, but we could not send the verification email. Please contact support.')
+            
             return redirect('registration_success')
     else:
         form = ParentRegistrationForm()
@@ -547,6 +571,57 @@ def register(request):
 
 class RegistrationSuccessView(TemplateView):
     template_name = 'parent_ui/registration_success.html'
+
+
+def verify_email(request, token):
+    """Handle email verification"""
+    from .email_utils import verify_email_token
+    
+    user, message = verify_email_token(token)
+    
+    if user:
+        if user.is_email_verified:
+            messages.success(request, message)
+            # Log the user in after successful verification
+            login(request, user)
+            return redirect('parent_dashboard')
+        else:
+            messages.info(request, message)
+    else:
+        messages.error(request, message)
+    
+    return render(request, 'parent_ui/email_verification_result.html', {
+        'user': user,
+        'message': message
+    })
+
+
+def resend_verification_email(request):
+    """Resend verification email"""
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        if not email:
+            messages.error(request, 'Please provide your email address.')
+            return redirect('resend_verification')
+        
+        try:
+            from api.models import CustomUser
+            user = CustomUser.objects.get(email=email, is_email_verified=False)
+            
+            from .email_utils import resend_verification_email as resend_email
+            success, message = resend_email(user, request)
+            
+            if success:
+                messages.success(request, message)
+            else:
+                messages.error(request, message)
+                
+        except CustomUser.DoesNotExist:
+            messages.error(request, 'No unverified account found with this email address.')
+        except Exception as e:
+            messages.error(request, 'An error occurred. Please try again later.')
+    
+    return render(request, 'parent_ui/resend_verification.html')
 
 
 @login_required
@@ -596,3 +671,22 @@ def account_settings(request):
     }
     
     return render(request, 'parent_ui/account_settings.html', context)
+
+
+class CustomLogoutView(LogoutView):
+    """Custom logout view that clears JWT tokens and custom session data"""
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Clear custom session data
+        if 'is_authenticated' in request.session:
+            del request.session['is_authenticated']
+        
+        # Call the parent dispatch to handle Django's logout
+        response = super().dispatch(request, *args, **kwargs)
+        
+        # Clear JWT token cookies
+        if hasattr(response, 'delete_cookie'):
+            response.delete_cookie('access_token', path='/')
+            response.delete_cookie('refresh_token', path='/')  # In case this was set elsewhere
+        
+        return response

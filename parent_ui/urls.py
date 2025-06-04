@@ -22,6 +22,10 @@ urlpatterns = [
     path('register/', views.register, name='register'),
     path('register/success/', views.RegistrationSuccessView.as_view(), name='registration_success'),
     
+    # Email verification
+    path('verify-email/<uuid:token>/', views.verify_email, name='verify_email'),
+    path('resend-verification/', views.resend_verification_email, name='resend_verification'),
+    
     # Account settings
     path('account/settings/', views.account_settings, name='account_settings'),
 ]

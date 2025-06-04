@@ -1,17 +1,28 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+import uuid
 
 class CustomUser(AbstractUser):
     is_parent = models.BooleanField(default=False)
     is_child = models.BooleanField(default=False)
+    
+    # Email verification fields
+    is_email_verified = models.BooleanField(default=False)
+    email_verification_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
+    
+    def save(self, *args, **kwargs):
+        # If this is a new user, set is_active to False until email is verified
+        if self.pk is None and not self.is_email_verified:
+            self.is_active = False
+        super().save(*args, **kwargs)
 
 class ChildDevice(models.Model):
     parent = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     device_id = models.CharField(max_length=255)  # Removed unique=True
     nickname = models.CharField(max_length=100, blank=True, null=True)
     last_sync = models.DateTimeField(null=True)
-    last_seen = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

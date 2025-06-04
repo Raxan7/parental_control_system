@@ -38,7 +38,7 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = ["192.168.1.188", "localhost", "127.0.0.1", "192.168.1.147", "parental.chuosmart.com", 
                  "www.parental.chuosmart.com", "parental-control-web.onrender.com", 
                  "www.parental-control-web.onrender.com", "pcs-4ngp.onrender.com", 
-                 "192.168.1.154", "www.parental-control-web.onrender.com",]
+                 "192.168.1.154", "www.parental-control-web.onrender.com", "testserver"]
 
 
 # Application definition
@@ -293,9 +293,22 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read this
 
-# Note: SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE are set above based on DEBUG setting  
+# Note: SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE are set above based on DEBUG setting
 
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Changed to SMTP for real email sending
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'manyerere201@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'manyerere201@gmail.com')
 
+# Email timeout settings
+EMAIL_TIMEOUT = 30
+
+# Email verification settings
+EMAIL_VERIFICATION_TOKEN_EXPIRES_HOURS = 24
 
 
 # settings.py

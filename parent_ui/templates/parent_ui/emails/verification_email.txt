@@ -1,0 +1,24 @@
+{{ site_name }} - Email Verification
+========================================
+
+Hello {{ user.username }},
+
+Thank you for registering with {{ site_name }}! To complete your registration and start using our parental control features, please verify your email address.
+
+Verification Link:
+{{ verification_url }}
+
+Important: This verification link will expire in {{ expires_hours }} hours. If you don't verify your email within this time, you'll need to request a new verification email.
+
+Once your email is verified, you'll be able to:
+- Register and manage your children's devices
+- Set screen time limits and restrictions  
+- Block inappropriate apps and content
+- Monitor usage and receive reports
+
+If you didn't create an account with us, please ignore this email.
+
+---
+This email was sent by {{ site_name }}.
+If you have any questions, please contact our support team.
+Do not reply to this email. This mailbox is not monitored.
