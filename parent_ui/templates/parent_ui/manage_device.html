@@ -4,7 +4,72 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Manage Device: {{ device.nickname|default:device.device_id }}</h1>
-    <a href="?download=pdf" class="btn btn-primary">Download PDF Report</a>
+    <div class="btn-group">
+        <button type="button" class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            Download Report
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="?download=pdf&timeframe={{ timeframe }}&custom_days={{ custom_days }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF
+            </a></li>
+            <li><a class="dropdown-item" href="?download=csv&timeframe={{ timeframe }}&custom_days={{ custom_days }}&from_date={{ from_date }}&to_date={{ to_date }}">
+                <i class="bi bi-file-earmark-spreadsheet me-2"></i>Download CSV
+            </a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Timeframe Filter -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Filter Usage Data by Timeframe</h5>
+                <span class="badge bg-light text-primary">{{ timeframe_description }}</span>
+            </div>
+            <div class="card-body">
+                <form id="timeframeFilterForm" method="get" class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="timeframeSelect" class="form-label">Select Timeframe</label>
+                        <select id="timeframeSelect" name="timeframe" class="form-select">
+                            <option value="day" {% if timeframe == 'day' %}selected{% endif %}>Last 24 Hours</option>
+                            <option value="week" {% if timeframe == 'week' %}selected{% endif %}>Last 7 Days</option>
+                            <option value="month" {% if timeframe == 'month' %}selected{% endif %}>Last 30 Days</option>
+                            <option value="year" {% if timeframe == 'year' %}selected{% endif %}>Last 365 Days</option>
+                            <option value="custom" {% if timeframe == 'custom' %}selected{% endif %}>Custom Days</option>
+                            <option value="date_range" {% if timeframe == 'date_range' %}selected{% endif %}>Date Range</option>
+                        </select>
+                    </div>
+                    <div id="customDaysContainer" class="col-md-2" {% if timeframe != 'custom' %}style="display: none;"{% endif %}>
+                        <label for="customDays" class="form-label">Number of Days</label>
+                        <input type="number" id="customDays" name="custom_days" class="form-control" 
+                               value="{{ custom_days|default:'' }}" min="1" max="365">
+                    </div>
+                    <div id="dateRangeContainer" class="col-md-4" {% if timeframe != 'date_range' %}style="display: none;"{% endif %}>
+                        <div class="row">
+                            <div class="col-6">
+                                <label for="fromDate" class="form-label">From Date</label>
+                                <input type="date" id="fromDate" name="from_date" class="form-control" 
+                                       value="{{ from_date|default:'' }}">
+                            </div>
+                            <div class="col-6">
+                                <label for="toDate" class="form-label">To Date</label>
+                                <input type="date" id="toDate" name="to_date" class="form-control" 
+                                       value="{{ to_date|default:'' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary" id="applyFilterBtn">
+                            <span class="spinner-border spinner-border-sm d-none" id="filterSpinner" role="status" aria-hidden="true"></span>
+                            Apply Filter
+                        </button>
+                        <a href="{% url 'manage_device' device_id=device.device_id %}" class="btn btn-outline-secondary">Reset</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <ul class="nav nav-tabs mb-4" id="deviceTabs" role="tablist">
@@ -320,6 +385,87 @@ document.addEventListener('DOMContentLoaded', function() {
                 btnText.textContent = 'Update Rules';
                 spinner.classList.add('d-none');
             });
+        });
+    }
+
+    // Timeframe filter functionality
+    const timeframeFilterForm = document.getElementById('timeframeFilterForm');
+    const timeframeSelect = document.getElementById('timeframeSelect');
+    const customDaysContainer = document.getElementById('customDaysContainer');
+    const dateRangeContainer = document.getElementById('dateRangeContainer');
+    const customDaysInput = document.getElementById('customDays');
+    const fromDateInput = document.getElementById('fromDate');
+    const toDateInput = document.getElementById('toDate');
+    const applyFilterBtn = document.getElementById('applyFilterBtn');
+    const filterSpinner = document.getElementById('filterSpinner');
+    
+    if (timeframeSelect) {
+        timeframeSelect.addEventListener('change', function() {
+            const value = this.value;
+            
+            // Hide all optional containers
+            customDaysContainer.style.display = 'none';
+            dateRangeContainer.style.display = 'none';
+            
+            // Show relevant container based on selection
+            if (value === 'custom') {
+                customDaysContainer.style.display = '';
+                customDaysInput.focus();
+            } else if (value === 'date_range') {
+                dateRangeContainer.style.display = '';
+                fromDateInput.focus();
+            }
+        });
+    }
+    
+    if (timeframeFilterForm) {
+        timeframeFilterForm.addEventListener('submit', function(e) {
+            const timeframe = timeframeSelect.value;
+            
+            // Show spinner
+            if (filterSpinner && applyFilterBtn) {
+                filterSpinner.classList.remove('d-none');
+                applyFilterBtn.disabled = true;
+            }
+            
+            // Validation
+            if (timeframe === 'custom' && (!customDaysInput.value || customDaysInput.value < 1)) {
+                e.preventDefault();
+                alert('Please enter a valid number of days (1-365)');
+                if (filterSpinner && applyFilterBtn) {
+                    filterSpinner.classList.add('d-none');
+                    applyFilterBtn.disabled = false;
+                }
+                return false;
+            }
+            
+            if (timeframe === 'date_range' && (!fromDateInput.value || !toDateInput.value)) {
+                e.preventDefault();
+                alert('Please select both start and end dates');
+                if (filterSpinner && applyFilterBtn) {
+                    filterSpinner.classList.add('d-none');
+                    applyFilterBtn.disabled = false;
+                }
+                return false;
+            }
+            
+            if (timeframe === 'date_range' && fromDateInput.value && toDateInput.value) {
+                const fromDate = new Date(fromDateInput.value);
+                const toDate = new Date(toDateInput.value);
+                
+                if (fromDate > toDate) {
+                    e.preventDefault();
+                    alert('Start date must be before end date');
+                    if (filterSpinner && applyFilterBtn) {
+                        filterSpinner.classList.add('d-none');
+                        applyFilterBtn.disabled = false;
+                    }
+                    return false;
+                }
+            }
+            
+            // Form is valid, continue submission
+            return true;
         });
     }
 });

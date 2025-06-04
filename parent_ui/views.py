@@ -3,6 +3,7 @@ import json
 import logging
 import time
 import requests
+import csv
 
 from django.contrib.auth import login, update_session_auth_hash
 from django.contrib.auth.decorators import login_required
@@ -10,7 +11,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.contrib import messages
 from django.core import serializers
-from django.http import HttpResponseForbidden, JsonResponse, StreamingHttpResponse
+from django.http import HttpResponseForbidden, JsonResponse, StreamingHttpResponse, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -54,6 +55,7 @@ def event_stream(request):
     return StreamingHttpResponse(event_generator(), content_type='text/event-stream')
 
 
+# ...existing code...
 from django.db.models import Sum
 from django.http import HttpResponse
 from reportlab.pdfgen import canvas
@@ -64,9 +66,62 @@ from datetime import datetime
 def manage_device(request, device_id):
     device = get_object_or_404(ChildDevice, device_id=device_id, parent=request.user)
     
-    # Get usage data for this specific device only
+    # Get timeframe from request parameters (default to 7 days)
+    timeframe = request.GET.get('timeframe')
+    custom_days = request.GET.get('custom_days')
+    from_date = request.GET.get('from_date')
+    to_date = request.GET.get('to_date')
+    
+    # Get the last used timeframe from the session, or default to 'week'
+    if not timeframe:
+        timeframe = request.session.get('report_timeframe', 'week')
+        custom_days = request.session.get('report_custom_days')
+    
+    # Store the current timeframe in the session for next visit
+    request.session['report_timeframe'] = timeframe
+    if custom_days:
+        request.session['report_custom_days'] = custom_days
+    
+    # Calculate the date range based on timeframe
+    end_date = timezone.now()
+    if timeframe == 'day':
+        start_date = end_date - timezone.timedelta(days=1)
+        timeframe_description = "Last 24 Hours"
+    elif timeframe == 'week':
+        start_date = end_date - timezone.timedelta(days=7)
+        timeframe_description = "Last 7 Days"
+    elif timeframe == 'month':
+        start_date = end_date - timezone.timedelta(days=30)
+        timeframe_description = "Last 30 Days"
+    elif timeframe == 'year':
+        start_date = end_date - timezone.timedelta(days=365)
+        timeframe_description = "Last 365 Days"
+    elif timeframe == 'custom' and custom_days and custom_days.isdigit():
+        days = int(custom_days)
+        start_date = end_date - timezone.timedelta(days=days)
+        timeframe_description = f"Last {days} Days"
+    elif timeframe == 'date_range' and from_date and to_date:
+        from datetime import datetime
+        try:
+            start_date = timezone.make_aware(datetime.strptime(from_date, '%Y-%m-%d'))
+            end_date = timezone.make_aware(datetime.strptime(to_date, '%Y-%m-%d').replace(hour=23, minute=59, second=59))
+            timeframe_description = f"{from_date} to {to_date}"
+        except ValueError:
+            # Invalid date format, fall back to default
+            start_date = end_date - timezone.timedelta(days=7)
+            timeframe = 'week'
+            timeframe_description = "Last 7 Days"
+    else:
+        # Default to week if invalid timeframe
+        start_date = end_date - timezone.timedelta(days=7)
+        timeframe = 'week'
+        timeframe_description = "Last 7 Days"
+    
+    # Get usage data for this specific device within the timeframe
     logs = AppUsageLog.objects.filter(
-        device=device
+        device=device,
+        start_time__gte=start_date,
+        start_time__lte=end_date
     )
     
     # Prepare data for charts
@@ -97,9 +152,10 @@ def manage_device(request, device_id):
         # Create a default rule if none exists
         screen_time_form = ScreenTimeRuleForm()
 
-    # Check if PDF download was requested
-    if request.GET.get('download') == 'pdf':
-        return generate_pdf_report(device, logs)
+    # Check if download was requested (PDF or CSV)
+    download_format = request.GET.get('download')
+    if download_format in ['pdf', 'csv']:
+        return generate_report(device, logs, download_format, timeframe_description)
 
     return render(request, 'parent_ui/manage_device.html', context={
         'form': form,
@@ -109,9 +165,22 @@ def manage_device(request, device_id):
         'logs': logs,
         'usage_by_app': usage_by_app,
         'daily_usage': daily_usage,
+        'timeframe': timeframe,
+        'custom_days': custom_days,
+        'from_date': from_date,
+        'to_date': to_date,
+        'timeframe_description': timeframe_description,
     })
 
-def generate_pdf_report(device, logs):
+def generate_report(device, logs, format_type, timeframe_description):
+    if format_type == 'pdf':
+        return generate_pdf_report(device, logs, timeframe_description)
+    elif format_type == 'csv':
+        return generate_csv_report(device, logs, timeframe_description)
+
+def generate_pdf_report(device, logs, timeframe_description):
+    from .templatetags.custom_filters import friendly_app_name
+    
     buffer = BytesIO()
     p = canvas.Canvas(buffer)
     
@@ -120,16 +189,18 @@ def generate_pdf_report(device, logs):
     p.drawString(100, 800, f"Device Usage Report: {device.nickname or device.device_id}")
     p.setFont("Helvetica", 12)
     p.drawString(100, 780, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    p.drawString(100, 760, f"Timeframe: {timeframe_description}")
     
     # Table headers
-    p.drawString(100, 750, "App Name")
-    p.drawString(300, 750, "Start Time")
-    p.drawString(400, 750, "Duration (mins)")
+    p.drawString(100, 730, "App Name")
+    p.drawString(300, 730, "Start Time")
+    p.drawString(400, 730, "Duration (mins)")
     
     # Table rows
-    y = 730
+    y = 710
     for log in logs.order_by('-start_time')[:50]:  # Limit to 50 most recent logs
-        p.drawString(100, y, log.app_name)
+        friendly_name = friendly_app_name(log.app_name, device.parent)
+        p.drawString(100, y, friendly_name)
         p.drawString(300, y, log.start_time.strftime('%Y-%m-%d %H:%M'))
         p.drawString(400, y, f"{round(log.duration/60, 1)}")
         y -= 20
@@ -140,18 +211,87 @@ def generate_pdf_report(device, logs):
     # Summary
     p.showPage()
     p.setFont("Helvetica-Bold", 14)
-    p.drawString(100, 800, "Usage Summary (Last 7 Days)")
+    p.drawString(100, 800, f"Usage Summary ({timeframe_description})")
     
     total_usage = sum(log.duration for log in logs)
     p.setFont("Helvetica", 12)
     p.drawString(100, 770, f"Total screen time: {round(total_usage/3600, 2)} hours")
     p.drawString(100, 750, f"Number of app sessions: {logs.count()}")
     
+    # App usage breakdown
+    usage_by_app = logs.values('app_name').annotate(
+        total_duration=Sum('duration')
+    ).order_by('-total_duration')[:10]  # Top 10 apps
+    
+    p.drawString(100, 720, "Top 10 Apps by Usage:")
+    y = 700
+    for app in usage_by_app:
+        hours = app['total_duration'] / 3600
+        friendly_name = friendly_app_name(app['app_name'], device.parent)
+        p.drawString(100, y, f"• {friendly_name}: {round(hours, 2)} hours")
+        y -= 20
+    
     p.save()
     buffer.seek(0)
     
     response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="{device.device_id}_usage_report.pdf"'
+    response['Content-Disposition'] = f'attachment; filename="{device.device_id}_usage_report_{timeframe_description.replace(" ", "_")}.pdf"'
+    return response
+
+def generate_csv_report(device, logs, timeframe_description):
+    import csv
+    from django.http import HttpResponse
+    from .templatetags.custom_filters import friendly_app_name
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{device.device_id}_usage_report_{timeframe_description.replace(" ", "_")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Header information
+    writer.writerow(['Device Usage Report'])
+    writer.writerow(['Device', device.nickname or device.device_id])
+    writer.writerow(['Generated on', datetime.now().strftime('%Y-%m-%d %H:%M')])
+    writer.writerow(['Timeframe', timeframe_description])
+    writer.writerow([])  # Empty row
+    
+    # Summary
+    total_usage = sum(log.duration for log in logs)
+    writer.writerow(['Summary'])
+    writer.writerow(['Total screen time (hours)', round(total_usage/3600, 2)])
+    writer.writerow(['Number of app sessions', logs.count()])
+    writer.writerow([])  # Empty row
+    
+    # App usage breakdown
+    usage_by_app = logs.values('app_name').annotate(
+        total_duration=Sum('duration')
+    ).order_by('-total_duration')
+    
+    writer.writerow(['App Usage Summary'])
+    writer.writerow(['App Name', 'Total Duration (hours)', 'Total Duration (minutes)'])
+    for app in usage_by_app:
+        hours = app['total_duration'] / 3600
+        minutes = app['total_duration'] / 60
+        friendly_name = friendly_app_name(app['app_name'], device.parent)
+        writer.writerow([friendly_name, round(hours, 2), round(minutes, 1)])
+    
+    writer.writerow([])  # Empty row
+    
+    # Detailed usage logs
+    writer.writerow(['Detailed Usage Logs'])
+    writer.writerow(['App Name', 'Start Time', 'End Time', 'Duration (minutes)'])
+    
+    for log in logs.order_by('-start_time'):
+        duration_minutes = log.duration / 60
+        end_time = log.end_time.strftime('%Y-%m-%d %H:%M:%S') if log.end_time else 'N/A'
+        friendly_name = friendly_app_name(log.app_name, device.parent)
+        writer.writerow([
+            friendly_name,
+            log.start_time.strftime('%Y-%m-%d %H:%M:%S'),
+            end_time,
+            round(duration_minutes, 1)
+        ])
+    
     return response
 
 

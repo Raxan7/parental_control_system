@@ -327,7 +327,6 @@ def set_screen_time(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def block_app(request):
-    print("I am a warrior fighting against app distractions!")
     try:
         device_id = request.data.get('device_id')
         app_name = request.data.get('app_name')
@@ -375,7 +374,7 @@ def block_app(request):
         # Trigger immediate sync to Android device
         from parent_ui.tasks import send_blocked_app_notification, trigger_immediate_sync
         
-        # Send notification synchronously
+        # Send notification synchronously celery task
         send_blocked_app_notification(device_id, app_name, package_name)
         
         # Trigger immediate sync
