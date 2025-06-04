@@ -52,7 +52,7 @@ def app_blocking_view(request, device_id):
     
     # Handle POST request for form-based app blocking
     if request.method == 'POST':
-        form = BlockAppForm(request.POST)
+        form = BlockAppForm(request.POST, user=request.user)
         if form.is_valid():
             blocked_app = form.save(commit=False)
             blocked_app.device = device
@@ -78,7 +78,7 @@ def app_blocking_view(request, device_id):
             return redirect('app_blocking', device_id=device_id)
         # If form is invalid, continue to render the page with errors
     else:
-        form = BlockAppForm()
+        form = BlockAppForm(user=request.user)
     
     # Get all blocked apps for this device
     blocked_apps = BlockedApp.objects.filter(device=device)

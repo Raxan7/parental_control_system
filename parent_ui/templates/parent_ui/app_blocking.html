@@ -331,6 +331,115 @@
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // App name and package name validation mapping
+        const appMappings = {
+            // Social Media
+            'whatsapp': 'com.whatsapp',
+            'facebook': 'com.facebook.katana',
+            'instagram': 'com.instagram.android',
+            'snapchat': 'com.snapchat.android',
+            'twitter': 'com.twitter.android',
+            'discord': 'com.discord',
+            'telegram': 'org.telegram.messenger',
+            'tiktok': 'com.zhiliaoapp.musically',
+            'reddit': 'com.reddit.frontpage',
+            'linkedin': 'com.linkedin.android',
+            
+            // Messaging
+            'gmail': 'com.google.android.gm',
+            'outlook': 'com.microsoft.office.outlook',
+            
+            // Games
+            'minecraft': 'com.mojang.minecraftpe',
+            'roblox': 'com.roblox.client',
+            'clash royale': 'com.supercell.clashroyale',
+            'clash of clans': 'com.supercell.clashofclans',
+            'candy crush saga': 'com.king.candycrushsaga',
+            
+            // Other
+            'chrome': 'com.android.chrome',
+            'youtube': 'com.google.android.youtube',
+            'amazon': 'com.amazon.mShop.android.shopping',
+            'spotify': 'com.spotify.music',
+            'netflix': 'com.netflix.mediaclient'
+        };
+
+        // Reverse mapping for package name to app name
+        const packageMappings = {};
+        for (const [appName, packageName] of Object.entries(appMappings)) {
+            packageMappings[packageName] = appName;
+        }
+
+        // Get form elements
+        const blockAppForm = document.getElementById('blockAppForm');
+        const appNameInput = blockAppForm.querySelector('[name="app_name"]');
+        const packageNameInput = blockAppForm.querySelector('[name="package_name"]');
+
+        // Create validation message container
+        function createValidationMessage(input, message, type = 'error') {
+            // Remove existing validation messages for this field
+            const existingMessages = input.parentNode.querySelectorAll('.validation-message');
+            existingMessages.forEach(msg => msg.remove());
+
+            if (message) {
+                const msgElement = document.createElement('div');
+                msgElement.className = `validation-message text-${type === 'error' ? 'danger' : 'success'} small mt-1`;
+                msgElement.innerHTML = `<i class="bi bi-${type === 'error' ? 'exclamation-circle' : 'check-circle'} me-1"></i>${message}`;
+                input.parentNode.appendChild(msgElement);
+            }
+        }
+
+        // Validate app name and package name correspondence
+        function validateAppPackageMatch() {
+            const appName = appNameInput.value.trim().toLowerCase();
+            const packageName = packageNameInput.value.trim().toLowerCase();
+
+            // Clear previous validation messages
+            createValidationMessage(appNameInput, '');
+            createValidationMessage(packageNameInput, '');
+
+            // Only validate if both fields have values
+            if (!appName || !packageName) {
+                return true;
+            }
+
+            // Check if app name maps to the entered package name
+            const expectedPackage = appMappings[appName];
+            if (expectedPackage && expectedPackage.toLowerCase() !== packageName) {
+                createValidationMessage(packageNameInput, 
+                    `Expected package name for "${appNameInput.value}": ${expectedPackage}`);
+                return false;
+            }
+
+            // Check if package name maps to the entered app name
+            const expectedApp = packageMappings[packageName];
+            if (expectedApp && expectedApp.toLowerCase() !== appName) {
+                createValidationMessage(appNameInput, 
+                    `Expected app name for "${packageNameInput.value}": ${expectedApp.charAt(0).toUpperCase() + expectedApp.slice(1)}`);
+                return false;
+            }
+
+            // If we have a known mapping, show success
+            if (expectedPackage || expectedApp) {
+                createValidationMessage(appNameInput, 'App name and package name match!', 'success');
+                createValidationMessage(packageNameInput, 'App name and package name match!', 'success');
+            }
+
+            return true;
+        }
+
+        // Add event listeners for real-time validation
+        appNameInput.addEventListener('input', validateAppPackageMatch);
+        packageNameInput.addEventListener('input', validateAppPackageMatch);
+
+        // Validate on form submission
+        blockAppForm.addEventListener('submit', function(e) {
+            if (!validateAppPackageMatch()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
         // Timeframe filter functionality
         const timeframeFilterForm = document.getElementById('timeframeFilterForm');
         const timeframeSelect = document.getElementById('timeframeSelect');

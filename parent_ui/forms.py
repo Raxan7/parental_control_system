@@ -65,6 +65,32 @@ class BlockAppForm(forms.ModelForm):
     class Meta:
         model = BlockedApp
         fields = ['app_name', 'package_name', 'notes']
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        app_name = cleaned_data.get('app_name')
+        package_name = cleaned_data.get('package_name')
+        
+        # If both app name and package name are provided, validate they match
+        if app_name and package_name and package_name.strip():
+            from .templatetags.custom_filters import friendly_app_name
+            
+            # Get the expected app name from the package name
+            expected_app_name = friendly_app_name(package_name, self.user)
+            
+            # Compare app names (case insensitive)
+            if app_name.lower().strip() != expected_app_name.lower().strip():
+                raise forms.ValidationError(
+                    f"App name '{app_name}' does not match package name '{package_name}'. "
+                    f"Expected app name: '{expected_app_name}'. "
+                    f"Please ensure the app name and package name correspond to the same application."
+                )
+        
+        return cleaned_data
 
 class ParentRegistrationForm(UserCreationForm):
     email = forms.EmailField(required=True)
