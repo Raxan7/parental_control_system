@@ -2,6 +2,7 @@
 from django.urls import path
 from . import views
 from . import views_app_blocking
+from . import views_content_filtering
 
 urlpatterns = [
     path('device/<str:device_id>/', views.manage_device, name='manage_device'),
@@ -10,6 +11,10 @@ urlpatterns = [
     # New app blocking interface
     path('device/<str:device_id>/app-blocking/', views_app_blocking.app_blocking_view, name='app_blocking'),
     path('device/<str:device_id>/toggle-block-app/', views_app_blocking.toggle_block_app, name='toggle_block_app'),
+
+    # AI Content Filtering
+    path('device/<str:device_id>/ai-content-filtering/', views_content_filtering.ai_content_filtering_view, name='ai_content_filtering'),
+    path('device/<str:device_id>/ai-status/', views_content_filtering.get_ai_status, name='get_ai_status'),
 
     path('login/', views.ParentLoginView.as_view(), name='login'),
     path('', views.ParentDashboardView.as_view(), name='parent_dashboard'),
