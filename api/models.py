@@ -160,3 +160,149 @@ class ScreenTime(models.Model):
 
     def __str__(self):
         return f"{self.device.device_id} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}: {self.minutes} minutes"
+
+# URL Content Filtering Models
+class BlockedURL(models.Model):
+    """Model to store blocked URLs for content filtering"""
+    BLOCK_TYPE_CHOICES = [
+        ('exact', 'Exact URL'),
+        ('domain', 'Entire Domain'),
+        ('keyword', 'Contains Keyword'),
+        ('regex', 'Regular Expression'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('adult', 'Adult Content'),
+        ('social', 'Social Media'),
+        ('gaming', 'Gaming'),
+        ('streaming', 'Video Streaming'),
+        ('shopping', 'Shopping'),
+        ('news', 'News'),
+        ('education', 'Educational'),
+        ('custom', 'Custom Category'),
+    ]
+    
+    device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE, related_name='blocked_urls')
+    url_pattern = models.TextField(help_text="URL, domain, keyword, or regex pattern to block")
+    block_type = models.CharField(max_length=10, choices=BLOCK_TYPE_CHOICES, default='exact')
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='custom')
+    reason = models.TextField(blank=True, null=True, help_text="Reason for blocking this URL")
+    blocked_at = models.DateTimeField(auto_now_add=True)
+    blocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='blocked_urls'
+    )
+    is_active = models.BooleanField(default=True)
+    last_synced = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ('device', 'url_pattern', 'block_type')
+        ordering = ['-blocked_at']
+        verbose_name = "Blocked URL"
+        verbose_name_plural = "Blocked URLs"
+    
+    def __str__(self):
+        return f"{self.url_pattern} ({self.get_block_type_display()}) - {self.device}"
+    
+    def clean(self):
+        """Validate URL patterns based on block type"""
+        from django.core.exceptions import ValidationError
+        import re
+        
+        if self.block_type == 'exact' and not self.url_pattern.startswith(('http://', 'https://')):
+            self.url_pattern = 'https://' + self.url_pattern
+        
+        if self.block_type == 'regex':
+            try:
+                re.compile(self.url_pattern)
+            except re.error:
+                raise ValidationError("Invalid regular expression pattern")
+    
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+
+class URLAccessLog(models.Model):
+    """Log URL access attempts for monitoring and reporting"""
+    device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE, related_name='url_access_logs')
+    url = models.URLField(max_length=2048)
+    domain = models.CharField(max_length=255, db_index=True)
+    access_time = models.DateTimeField()
+    was_blocked = models.BooleanField(default=False)
+    blocked_by_rule = models.ForeignKey(BlockedURL, on_delete=models.SET_NULL, null=True, blank=True)
+    user_agent = models.TextField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-access_time']
+        indexes = [
+            models.Index(fields=['device', 'access_time']),
+            models.Index(fields=['domain', 'access_time']),
+            models.Index(fields=['was_blocked', 'access_time']),
+        ]
+    
+    def __str__(self):
+        status = "BLOCKED" if self.was_blocked else "ALLOWED"
+        return f"{self.device} - {self.domain} [{status}] at {self.access_time}"
+    
+    def save(self, *args, **kwargs):
+        # Extract domain from URL if not set
+        if not self.domain and self.url:
+            from urllib.parse import urlparse
+            parsed = urlparse(self.url)
+            self.domain = parsed.netloc.lower()
+        super().save(*args, **kwargs)
+
+
+class SafeBrowsingCategory(models.Model):
+    """Predefined categories for safe browsing"""
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+    icon = models.CharField(max_length=50, default='fas fa-shield-alt')
+    color = models.CharField(max_length=20, default='#dc3545')
+    is_enabled_by_default = models.BooleanField(default=False)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = "Safe Browsing Category"
+        verbose_name_plural = "Safe Browsing Categories"
+
+
+class DeviceContentFilter(models.Model):
+    """Device-specific content filtering settings"""
+    device = models.OneToOneField(ChildDevice, on_delete=models.CASCADE, related_name='content_filter')
+    enabled = models.BooleanField(default=True)
+    strict_mode = models.BooleanField(default=False, help_text="Block unknown/unclassified websites")
+    allow_search_engines = models.BooleanField(default=True)
+    allow_educational = models.BooleanField(default=True)
+    blocked_categories = models.ManyToManyField(SafeBrowsingCategory, blank=True)
+    whitelist_enabled = models.BooleanField(default=False)
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"Content Filter for {self.device}"
+
+
+class WhitelistedURL(models.Model):
+    """URLs that are always allowed, even if they match blocked patterns"""
+    device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE, related_name='whitelisted_urls')
+    url_pattern = models.TextField()
+    reason = models.CharField(max_length=255, blank=True, null=True)
+    added_at = models.DateTimeField(auto_now_add=True)
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    
+    class Meta:
+        unique_together = ('device', 'url_pattern')
+    
+    def __str__(self):
+        return f"Whitelisted: {self.url_pattern} for {self.device}"
