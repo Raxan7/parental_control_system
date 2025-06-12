@@ -36,4 +36,7 @@ urlpatterns = [
     
     # Content blocking page
     path('blocked/', views.content_blocked_view, name='content_blocked'),
+    
+    # Test offline notification email
+    path('test-offline-notification/', views.test_offline_notification, name='test_offline_notification'),
 ]

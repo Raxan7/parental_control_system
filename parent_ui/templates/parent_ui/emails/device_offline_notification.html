@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Offline Alert</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header { 
+            background: linear-gradient(135deg, #dc3545, #bd2130); 
+            color: white; 
+            padding: 20px; 
+            text-align: center; 
+            border-radius: 8px 8px 0 0; 
+            margin: -30px -30px 30px -30px;
+        }
+        .alert-icon { 
+            font-size: 48px; 
+            margin-bottom: 10px; 
+        }
+        .device-info { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+            border-left: 4px solid #dc3545;
+        }
+        .actions { 
+            background: #e7f3ff; 
+            padding: 20px; 
+            border-radius: 6px; 
+            margin: 20px 0; 
+        }
+        .actions h3 { 
+            color: #0066cc; 
+            margin-top: 0; 
+        }
+        .actions ul { 
+            margin: 10px 0; 
+        }
+        .actions li { 
+            margin: 8px 0; 
+        }
+        .footer { 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #eee; 
+            font-size: 14px; 
+            color: #666; 
+        }
+        .highlight { 
+            background: #fff3cd; 
+            padding: 2px 4px; 
+            border-radius: 3px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="alert-icon">⚠️</div>
+            <h1>{% if is_test %}[TEST] {% endif %}Device Offline Alert</h1>
+            <p>{{ device_name }} has been offline for {% if time_offline_display %}{{ time_offline_display }}{% else %}{{ days_offline }} days{% endif %}</p>
+            {% if is_test %}
+            <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 4px; margin-top: 15px;">
+                <strong>🧪 This is a test email</strong><br>
+                <small>You requested to preview the offline notification email format.</small>
+            </div>
+            {% endif %}
+        </div>
+        
+        <p><strong>Dear {{ parent_name }},</strong></p>
+        
+        <p>We noticed that your child's device has been offline for an extended period and may need your attention.</p>
+        
+        <div class="device-info">
+            <h3>Device Information:</h3>
+            <ul>
+                <li><strong>Device Name:</strong> {{ device_name }}</li>
+                <li><strong>Device ID:</strong> {{ device_id }}</li>
+                <li><strong>Time Offline:</strong> <span class="highlight">{% if time_offline_display %}{{ time_offline_display }}{% else %}{{ days_offline }} days{% endif %}</span></li>
+                <li><strong>Last Sync:</strong> {{ last_sync_date }}</li>
+            </ul>
+        </div>
+        
+        <h3>This could mean:</h3>
+        <ul>
+            <li>🔴 The parental control app is not running</li>
+            <li>📶 The device is turned off or has no internet connection</li>
+            <li>🗑️ The app may have been uninstalled or disabled</li>
+            <li>🔋 Battery optimization settings are preventing the app from running</li>
+        </ul>
+        
+        <div class="actions">
+            <h3>Recommended Actions:</h3>
+            <ol>
+                <li>Check if the device is turned on and connected to the internet</li>
+                <li>Verify the parental control app is still installed and running</li>
+                <li>Check battery optimization settings to ensure the app can run in the background</li>
+                <li>Restart the parental control app if necessary</li>
+                <li>Contact technical support if the issue persists</li>
+            </ol>
+        </div>
+        
+        <p>For technical support, please contact us or refer to our troubleshooting guide.</p>
+        
+        <div class="footer">
+            <p><strong>Best regards,</strong><br>
+            Parental Control System</p>
+            
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+            
+            <p><small>This is an automated notification. You can adjust notification settings in your dashboard.</small></p>
+        </div>
+    </div>
+</body>
+</html>

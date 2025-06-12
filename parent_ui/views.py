@@ -700,3 +700,49 @@ def content_blocked_view(request):
     """
     # Simple static page - no need to process URLs or provide complex context
     return render(request, 'parent_ui/content_blocked_simple.html')
+
+
+@login_required
+def test_offline_notification(request):
+    """Send a test offline notification email to the logged-in parent"""
+    if request.method == 'POST':
+        try:
+            device_id = request.POST.get('device_id')
+            
+            # Log the test request
+            logger.info(f"Test offline notification requested by user {request.user.email}")
+            
+            # Get the device if specified, otherwise use None for mock data
+            device = None
+            if device_id:
+                try:
+                    device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
+                    logger.info(f"Using real device: {device.nickname or device.device_id}")
+                except ChildDevice.DoesNotExist:
+                    logger.info(f"Device {device_id} not found, using mock data")
+            else:
+                logger.info("No device specified, using mock data")
+            
+            from .email_utils import send_test_offline_notification
+            success = send_test_offline_notification(request.user, device)
+            
+            if success:
+                logger.info(f"Test email sent successfully to {request.user.email}")
+                messages.success(request, 'Test offline notification email sent successfully! Check your Gmail inbox.')
+            else:
+                logger.error(f"Failed to send test email to {request.user.email}")
+                messages.error(request, 'Failed to send test email. Please check your email settings.')
+            
+            return JsonResponse({
+                'success': success,
+                'message': 'Test email sent successfully!' if success else 'Failed to send test email.'
+            })
+            
+        except Exception as e:
+            logger.exception(f"Error in test_offline_notification: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'error': f'Unexpected error: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({'error': 'Invalid request method'}, status=405)

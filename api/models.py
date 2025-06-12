@@ -306,3 +306,16 @@ class WhitelistedURL(models.Model):
     
     def __str__(self):
         return f"Whitelisted: {self.url_pattern} for {self.device}"
+
+class DeviceOfflineNotification(models.Model):
+    """Track when offline notifications have been sent for devices"""
+    device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE, related_name='offline_notifications')
+    notification_sent_at = models.DateTimeField(auto_now_add=True)
+    days_offline = models.PositiveIntegerField()
+    email_sent_to = models.EmailField()
+    
+    class Meta:
+        ordering = ['-notification_sent_at']
+        
+    def __str__(self):
+        return f"Offline notification for {self.device} ({self.days_offline} days)"

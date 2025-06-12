@@ -1,0 +1,29 @@
+{% if is_test %}[TEST] {% endif %}Device Offline Alert - {{ device_name }}
+
+Dear {{ parent_name }},
+
+{% if is_test %}🧪 TEST EMAIL: This is a preview of the offline notification email format.
+
+{% endif %}We noticed that your child's device "{{ device_name }}" ({{ device_id }}) has been offline for {% if time_offline_display %}{{ time_offline_display }}{% else %}{{ days_offline }} days{% endif %}.
+
+The device last synchronized with our system on: {{ last_sync_date }}
+
+This could mean:
+• The parental control app is not running
+• The device is turned off or has no internet connection
+• The app may have been uninstalled or disabled
+• Battery optimization settings are preventing the app from running
+
+Recommended Actions:
+1. Check if the device is turned on and connected to the internet
+2. Verify the parental control app is still installed and running
+3. Check battery optimization settings to ensure the app can run in the background
+4. Restart the parental control app if necessary
+
+For technical support, please contact us or refer to our troubleshooting guide.
+
+Best regards,
+Parental Control System
+
+---
+This is an automated notification. You can adjust notification settings in your dashboard.

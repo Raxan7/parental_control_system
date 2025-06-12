@@ -11,6 +11,9 @@
     {% endif %}
 </div>
 
+<!-- Hidden CSRF token for AJAX requests -->
+{% csrf_token %}
+
 {% if device %}
 <!-- Block App Modal -->
 <div class="modal fade" id="blockAppModal" tabindex="-1" aria-labelledby="blockAppModalLabel" aria-hidden="true">
@@ -36,8 +39,42 @@
 {% endif %}
 
 <div class="row">
-    <div class="col-md-12">
+    <div class="col-md-8">
         {% include 'parent_ui/partials/_device_list.html' %}
+    </div>
+    <div class="col-md-4">
+        <!-- Email Notifications Section -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-envelope me-2"></i>Email Notifications</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Test the offline device notification email system.</p>
+                
+                <div class="mb-3">
+                    <label for="testDeviceSelect" class="form-label">Select Device (Optional)</label>
+                    <select class="form-select" id="testDeviceSelect">
+                        <option value="">Use sample device data</option>
+                        {% for device in devices %}
+                        <option value="{{ device.device_id }}">{{ device.nickname|default:device.device_id }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <button type="button" class="btn btn-outline-primary btn-sm w-100" id="testEmailBtn">
+                    <i class="fas fa-paper-plane me-2"></i>Send Test Email
+                </button>
+                
+                <div id="testEmailResult" class="mt-2"></div>
+                
+                <hr class="my-3">
+                
+                <div class="small text-muted">
+                    <strong>Automatic Monitoring:</strong><br>
+                    The system automatically checks for devices offline for more than 2 days and sends email notifications to parents.
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -65,4 +102,74 @@ document.getElementById('blockAppForm')?.addEventListener('submit', function(e) 
 });
 </script>
 {% endif %}
+
+<script>
+// Handle test email button
+document.getElementById('testEmailBtn')?.addEventListener('click', function() {
+    const button = this;
+    const deviceSelect = document.getElementById('testDeviceSelect');
+    const resultDiv = document.getElementById('testEmailResult');
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (!csrfToken) {
+        console.error('CSRF token not found');
+        resultDiv.innerHTML = '<div class="alert alert-danger alert-sm mt-2"><i class="fas fa-exclamation-triangle me-2"></i>CSRF token error. Please refresh the page.</div>';
+        return;
+    }
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+    
+    // Clear previous results
+    resultDiv.innerHTML = '';
+    
+    const formData = new FormData();
+    formData.append('device_id', deviceSelect.value);
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    
+    console.log('Sending test email request...');
+    console.log('Device ID:', deviceSelect.value);
+    console.log('CSRF Token:', csrfToken);
+    
+    fetch('{% url "test_offline_notification" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success alert-sm mt-2"><i class="fas fa-check-circle me-2"></i>Test email sent successfully! Check your Gmail inbox.</div>';
+        } else {
+            const errorMsg = data.error || data.message || 'Failed to send test email';
+            resultDiv.innerHTML = `<div class="alert alert-danger alert-sm mt-2"><i class="fas fa-exclamation-triangle me-2"></i>${errorMsg}</div>`;
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        resultDiv.innerHTML = '<div class="alert alert-danger alert-sm mt-2"><i class="fas fa-exclamation-triangle me-2"></i>Network error occurred. Check browser console for details.</div>';
+    })
+    .finally(() => {
+        // Re-enable button
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Send Test Email';
+        
+        // Clear result after 8 seconds instead of 5
+        setTimeout(() => {
+            resultDiv.innerHTML = '';
+        }, 8000);
+    });
+});
+</script>
 {% endblock %}

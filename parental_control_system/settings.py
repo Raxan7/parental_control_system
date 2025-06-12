@@ -296,7 +296,8 @@ CSRF_COOKIE_HTTPONLY = False  # JavaScript needs to read this
 # Note: SESSION_COOKIE_SECURE and CSRF_COOKIE_SECURE are set above based on DEBUG setting
 
 # Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Changed to SMTP for real email sending
+# Use SMTP for real email sending
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True

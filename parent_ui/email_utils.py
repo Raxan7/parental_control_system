@@ -103,3 +103,86 @@ def resend_verification_email(user, request):
         return True, "Verification email sent successfully."
     else:
         return False, "Failed to send verification email. Please try again later."
+
+def send_device_offline_notification(device, days_offline):
+    """Send email notification when a device has been offline for too long"""
+    try:
+        parent = device.parent
+        
+        # Email context
+        context = {
+            'parent_name': parent.first_name or parent.username,
+            'device_name': device.nickname or device.device_id,
+            'device_id': device.device_id,
+            'days_offline': days_offline,
+            'last_sync': device.last_sync,
+            'last_sync_date': device.last_sync.strftime('%Y-%m-%d %H:%M') if device.last_sync else 'Never',
+            'site_name': 'Parental Control System',
+        }
+        
+        # Render email templates
+        html_message = render_to_string('parent_ui/emails/device_offline_notification.html', context)
+        plain_message = render_to_string('parent_ui/emails/device_offline_notification.txt', context)
+        
+        # Send email
+        send_mail(
+            subject=f'Device Alert: {device.nickname or device.device_id} has been offline for {days_offline} days',
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[parent.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        
+        logger.info(f"Offline notification email sent to {parent.email} for device {device.device_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send offline notification email for device {device.device_id}: {str(e)}")
+        return False
+
+def send_test_offline_notification(user, device=None):
+    """Send a test offline notification email to preview the email format"""
+    try:
+        # Use real device if provided, otherwise create mock data
+        if device:
+            device_name = device.nickname or device.device_id
+            device_id = device.device_id
+            last_sync = device.last_sync
+        else:
+            device_name = "Sample Child Device"
+            device_id = "sample_device_123"
+            last_sync = timezone.now() - timedelta(days=3)
+        
+        # Email context with test data
+        context = {
+            'parent_name': user.first_name or user.username,
+            'device_name': device_name,
+            'device_id': device_id,
+            'days_offline': 3,
+            'last_sync': last_sync,
+            'last_sync_date': last_sync.strftime('%Y-%m-%d %H:%M') if last_sync else 'Never',
+            'site_name': 'Parental Control System',
+            'is_test': True,  # Flag to indicate this is a test email
+        }
+        
+        # Render email templates
+        html_message = render_to_string('parent_ui/emails/device_offline_notification.html', context)
+        plain_message = render_to_string('parent_ui/emails/device_offline_notification.txt', context)
+        
+        # Send email with test prefix
+        send_mail(
+            subject=f'[TEST] Device Alert: {device_name} has been offline for 3 days',
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+        
+        logger.info(f"Test offline notification email sent to {user.email}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Failed to send test offline notification email to {user.email}: {str(e)}")
+        return False
