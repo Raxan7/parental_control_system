@@ -690,3 +690,13 @@ class CustomLogoutView(LogoutView):
             response.delete_cookie('refresh_token', path='/')  # In case this was set elsewhere
         
         return response
+
+
+def content_blocked_view(request):
+    """
+    Display a simple blocked content page when inappropriate content is accessed.
+    This view doesn't require authentication as it's meant to be accessible
+    when parental controls block content.
+    """
+    # Simple static page - no need to process URLs or provide complex context
+    return render(request, 'parent_ui/content_blocked_simple.html')

@@ -33,4 +33,7 @@ urlpatterns = [
     
     # Account settings
     path('account/settings/', views.account_settings, name='account_settings'),
+    
+    # Content blocking page
+    path('blocked/', views.content_blocked_view, name='content_blocked'),
 ]
