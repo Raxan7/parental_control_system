@@ -257,13 +257,17 @@ def set_screen_time(request):
         )
         logger.debug(f"Found device: {device}")
         
-        # Parse daily limit
+        # Parse daily limit - only update if provided
         daily_limit = request.data.get('daily_limit_minutes')
-        try:
-            daily_limit = int(daily_limit) if daily_limit is not None else 120
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid daily_limit_minutes value: {daily_limit}, using default 120")
-            daily_limit = 120
+        daily_limit_provided = daily_limit is not None and str(daily_limit).strip() != ''
+        
+        if daily_limit_provided:
+            try:
+                daily_limit = int(daily_limit)
+                if daily_limit < 1 or daily_limit > 1440:
+                    return Response({"error": "Daily limit must be between 1 and 1440 minutes"}, status=400)
+            except (ValueError, TypeError):
+                return Response({"error": f"Invalid daily_limit_minutes value: {daily_limit}"}, status=400)
 
         # Parse bedtime start
         bedtime_start_str = request.data.get('bedtime_start')
@@ -292,11 +296,16 @@ def set_screen_time(request):
             except ValueError as e:
                 logger.warning(f"Failed to parse bedtime_end: {bedtime_end_str} ({e})")
 
+        # Check if at least one field is being updated
+        if not any([daily_limit_provided, bedtime_start_str, bedtime_end_str]):
+            return Response({"error": "At least one field must be provided for update"}, status=400)
+
         # Update or create the rule
-        # force assigning fields manually
         rule, created = ScreenTimeRule.objects.get_or_create(device=device)
 
-        rule.daily_limit_minutes = daily_limit
+        # Only update daily limit if provided
+        if daily_limit_provided:
+            rule.daily_limit_minutes = daily_limit
 
         if bedtime_start is not None:
             rule.bedtime_start = bedtime_start

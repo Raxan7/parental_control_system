@@ -15,19 +15,31 @@ class DeviceForm(forms.ModelForm):
 # parent_ui/forms.py
 class ScreenTimeRuleForm(forms.ModelForm):
     daily_limit_minutes = forms.IntegerField(
+        required=False,  # Make optional
         min_value=1,
         max_value=1440,  # 24 hours in minutes
-        widget=forms.NumberInput(attrs={'class': 'form-control'})
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter daily limit in minutes (optional)'
+        })
     )
     
     bedtime_start = forms.TimeField(
         required=False,
-        widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        widget=forms.TimeInput(attrs={
+            'type': 'time', 
+            'class': 'form-control',
+            'placeholder': 'Set bedtime start (optional)'
+        })
     )
     
     bedtime_end = forms.TimeField(
         required=False,
-        widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'})
+        widget=forms.TimeInput(attrs={
+            'type': 'time', 
+            'class': 'form-control',
+            'placeholder': 'Set bedtime end (optional)'
+        })
     )
 
     class Meta:

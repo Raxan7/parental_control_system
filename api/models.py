@@ -143,19 +143,42 @@ class ScreenTimeRule(models.Model):
         self.save(update_fields=['synced_to_device'])
     
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 import logging
 
 logger = logging.getLogger(__name__)
 
+@receiver(pre_save, sender=ScreenTimeRule)
+def mark_rule_as_changed(sender, instance, **kwargs):
+    """Automatically mark rule as needing sync when it's updated"""
+    if instance.pk:  # Only for existing instances (updates)
+        try:
+            # Get the current state from database
+            old_instance = ScreenTimeRule.objects.get(pk=instance.pk)
+            
+            # Check if any relevant field has changed
+            if (old_instance.daily_limit_minutes != instance.daily_limit_minutes or
+                old_instance.bedtime_start != instance.bedtime_start or
+                old_instance.bedtime_end != instance.bedtime_end):
+                
+                # Mark as requiring sync
+                instance.synced_to_device = False
+                logger.info(f"ScreenTimeRule for device {instance.device.device_id} marked as needing sync due to changes")
+                
+        except ScreenTimeRule.DoesNotExist:
+            # This shouldn't happen, but handle gracefully
+            instance.synced_to_device = False
+
 @receiver(post_save, sender=ScreenTimeRule)
 def log_screen_time_rule_save(sender, instance, created, **kwargs):
     action = "Created" if created else "Updated"
+    sync_status = "needs sync" if not instance.synced_to_device else "synced"
     logger.info(f"{action} ScreenTimeRule for device {instance.device.device_id}: "
                 f"daily_limit_minutes={instance.daily_limit_minutes}, "
                 f"bedtime_start={instance.bedtime_start}, "
-                f"bedtime_end={instance.bedtime_end}")
+                f"bedtime_end={instance.bedtime_end}, "
+                f"sync_status={sync_status}")
 
 
 class ScreenTime(models.Model):
