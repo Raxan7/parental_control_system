@@ -303,10 +303,12 @@ def set_screen_time(request):
         if bedtime_end is not None:
             rule.bedtime_end = bedtime_end
 
+        # Mark as needing sync to device
+        rule.synced_to_device = False
         rule.save()
 
         
-        logger.info(f"Screen time rule {'created' if created else 'updated'} successfully: {rule}")
+        logger.info(f"Screen time rule {'created' if created else 'updated'} successfully: {rule} (marked for sync)")
         
         return Response({
             "status": "updated",
@@ -435,20 +437,56 @@ def register(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_screen_time_rules(request, device_id):
+    """
+    Server-side sync flag approach: Only return rules when they haven't been synced to device yet.
+    This eliminates the need for complex client-side change detection.
+    """
     try:
         device = ChildDevice.objects.get(device_id=device_id, parent=request.user)
-        rule = ScreenTimeRule.objects.get(device=device)
-        return Response({
-            'daily_limit_minutes': rule.daily_limit_minutes,
-            'bedtime_start': rule.bedtime_start,
-            'bedtime_end': rule.bedtime_end
-        })
-    except ScreenTimeRule.DoesNotExist:
-        return Response({
-            'daily_limit_minutes': 120,  # Default value
-            'bedtime_start': None,
-            'bedtime_end': None
-        })
+        
+        try:
+            rule = ScreenTimeRule.objects.get(device=device)
+            
+            # Only return rules if they haven't been synced to device yet
+            if not rule.synced_to_device:
+                logger.info(f"📤 Returning unsynced screen time rules to device {device_id}: "
+                           f"daily_limit={rule.daily_limit_minutes}, sync_flag={rule.synced_to_device}")
+                
+                # Mark as synced after returning
+                rule.mark_as_synced()
+                
+                return Response({
+                    'daily_limit_minutes': rule.daily_limit_minutes,
+                    'bedtime_start': rule.bedtime_start.strftime('%H:%M:%S') if rule.bedtime_start else None,
+                    'bedtime_end': rule.bedtime_end.strftime('%H:%M:%S') if rule.bedtime_end else None,
+                    'has_changes': True  # Indicate there are changes
+                })
+            else:
+                # No changes to sync
+                logger.debug(f"✅ No unsynced changes for device {device_id}")
+                return Response({
+                    'has_changes': False  # No changes to sync
+                })
+                
+        except ScreenTimeRule.DoesNotExist:
+            # Create default rule and mark as unsynced
+            rule = ScreenTimeRule.objects.create(
+                device=device,
+                daily_limit_minutes=120,
+                synced_to_device=False
+            )
+            logger.info(f"📤 Created default screen time rule for device {device_id}")
+            
+            # Mark as synced after returning
+            rule.mark_as_synced()
+            
+            return Response({
+                'daily_limit_minutes': 120,
+                'bedtime_start': None,
+                'bedtime_end': None,
+                'has_changes': True
+            })
+            
     except ChildDevice.DoesNotExist:
         return Response({"error": "Device not found"}, status=404)
 

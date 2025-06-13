@@ -127,9 +127,20 @@ class ScreenTimeRule(models.Model):
     bedtime_start = models.TimeField(null=True, blank=True)
     bedtime_end = models.TimeField(null=True, blank=True)
     last_updated = models.DateTimeField(auto_now=True)
+    synced_to_device = models.BooleanField(default=False)  # Track if changes have been delivered to Android
 
     def __str__(self):
         return f"Rules for {self.device.device_id}"
+    
+    def mark_as_changed(self):
+        """Mark rule as changed and requiring sync to device"""
+        self.synced_to_device = False
+        self.save(update_fields=['synced_to_device'])
+    
+    def mark_as_synced(self):
+        """Mark rule as synced to device"""
+        self.synced_to_device = True
+        self.save(update_fields=['synced_to_device'])
     
 
 from django.db.models.signals import post_save
@@ -306,16 +317,3 @@ class WhitelistedURL(models.Model):
     
     def __str__(self):
         return f"Whitelisted: {self.url_pattern} for {self.device}"
-
-class DeviceOfflineNotification(models.Model):
-    """Track when offline notifications have been sent for devices"""
-    device = models.ForeignKey(ChildDevice, on_delete=models.CASCADE, related_name='offline_notifications')
-    notification_sent_at = models.DateTimeField(auto_now_add=True)
-    days_offline = models.PositiveIntegerField()
-    email_sent_to = models.EmailField()
-    
-    class Meta:
-        ordering = ['-notification_sent_at']
-        
-    def __str__(self):
-        return f"Offline notification for {self.device} ({self.days_offline} days)"

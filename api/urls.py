@@ -19,5 +19,4 @@ urlpatterns = [
     path('get_blocked_apps/<str:device_id>/', views.get_blocked_apps, name='get_blocked_apps_api'),
     path('force_sync_blocked_apps/<str:device_id>/', views.force_sync_blocked_apps, name='force_sync_blocked_apps'),
     path('trigger_immediate_sync/<str:device_id>/', views.trigger_immediate_sync, name='trigger_immediate_sync'),
-    path('device-status/<str:device_id>/', views.device_status, name='device_status'),
 ]

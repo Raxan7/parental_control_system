@@ -56,8 +56,8 @@ class BlockedAppAdmin(admin.ModelAdmin):
 
 @admin.register(ScreenTimeRule)
 class ScreenTimeRuleAdmin(admin.ModelAdmin):
-    list_display = ('device', 'daily_limit_minutes', 'bedtime_start', 'bedtime_end', 'last_updated')
-    list_filter = ('device', 'last_updated')
+    list_display = ('device', 'daily_limit_minutes', 'bedtime_start', 'bedtime_end', 'synced_to_device', 'last_updated')
+    list_filter = ('device', 'synced_to_device', 'last_updated')
     search_fields = ('device__device_id', 'device__nickname')
     readonly_fields = ('last_updated',)
 

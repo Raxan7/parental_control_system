@@ -88,11 +88,6 @@
             App Blocking
         </a>
     </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link" href="{% url 'ai_content_filtering' device_id=device.device_id %}">
-            AI Content Filtering
-        </a>
-    </li>
 </ul>
 
 <div class="tab-content" id="deviceTabsContent">
@@ -104,8 +99,9 @@
                         <h5>App Usage Statistics</h5>
                     </div>
                     <div class="card-body">
-                        <div class="row" style="justify-content: center;">
-                            <div class="col-md-6">
+                        <div class="row">
+                            <!-- center the div -->
+                            <div class="col-md-6 mx-auto">
                                 <canvas id="usageChart" height="300"></canvas>
                             </div>
                         </div>
@@ -202,22 +198,6 @@
                         </a>
                     </div>
                 </div>
-                
-                <div class="card mt-3">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">🤖 AI Content Filtering</h5>
-                    </div>
-                    <div class="card-body">
-                        <p>Advanced AI-powered content filtering protects your child from harmful content automatically.</p>
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="status-indicator me-2" style="width: 12px; height: 12px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 10px #00ff88;"></div>
-                            <span class="text-success fw-bold">AI Guardian Active</span>
-                        </div>
-                        <a href="{% url 'ai_content_filtering' device_id=device.device_id %}" class="btn btn-primary">
-                            <i class="bi bi-robot"></i> View AI Dashboard
-                        </a>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -269,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const percentage = Math.round((value / total) * 100);
                             
                             // Display both the value and percentage
-                            return `${context.label}: ${value} min (${percentage}%)`;
+                            return `${context.label}: ${value} hrs (${percentage}%)`;
                         }
                     }
                 }

@@ -378,6 +378,8 @@ def update_screen_time(request, device_id):
             if bedtime_end_time is not None:
                 rule.bedtime_end = bedtime_end_time
                 
+            # Mark as needing sync to device
+            rule.synced_to_device = False
             rule.save()
             
             logger.info(f"Screen time rule {'created' if created else 'updated'} locally: {rule}")
