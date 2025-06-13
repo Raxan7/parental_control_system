@@ -18,6 +18,8 @@ class ScreenTimeRuleForm(forms.ModelForm):
         required=False,  # Make optional
         min_value=1,
         max_value=1440,  # 24 hours in minutes
+        label='Daily Screen Time Limit (minutes)',
+        help_text='Set the maximum screen time allowed per day. Leave empty to keep current setting.',
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
             'placeholder': 'Enter daily limit in minutes (optional)'
@@ -26,6 +28,8 @@ class ScreenTimeRuleForm(forms.ModelForm):
     
     bedtime_start = forms.TimeField(
         required=False,
+        label='Bedtime Start',
+        help_text='Device will be locked starting from this time. Leave empty to keep current setting.',
         widget=forms.TimeInput(attrs={
             'type': 'time', 
             'class': 'form-control',
@@ -35,6 +39,8 @@ class ScreenTimeRuleForm(forms.ModelForm):
     
     bedtime_end = forms.TimeField(
         required=False,
+        label='Bedtime End',
+        help_text='Device will be unlocked at this time. Leave empty to keep current setting.',
         widget=forms.TimeInput(attrs={
             'type': 'time', 
             'class': 'form-control',

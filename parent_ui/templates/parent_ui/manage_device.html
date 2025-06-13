@@ -168,7 +168,68 @@
                     <div class="card-body">
                         <form id="screenTimeForm" method="post" action="{% url 'update_screen_time' device_id=device.device_id %}">
                             {% csrf_token %}
-                            {% bootstrap_form screen_time_form %}
+                            
+                            <!-- Daily Limit Section -->
+                            <div class="mb-3">
+                                <label for="{{ screen_time_form.daily_limit_minutes.id_for_label }}" class="form-label">
+                                    {{ screen_time_form.daily_limit_minutes.label }}
+                                </label>
+                                {{ screen_time_form.daily_limit_minutes }}
+                                {% if screen_time_form.daily_limit_minutes.help_text %}
+                                    <div class="form-text">{{ screen_time_form.daily_limit_minutes.help_text }}</div>
+                                {% endif %}
+                                {% if screen_time_form.daily_limit_minutes.errors %}
+                                    <div class="text-danger">
+                                        {% for error in screen_time_form.daily_limit_minutes.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Bed Time Rules Section Title -->
+                            <div class="mt-4 mb-3">
+                                <h6 class="text-secondary border-bottom pb-2">
+                                    <i class="bi bi-moon-stars"></i> Bed Time Rules
+                                </h6>
+                            </div>
+                            
+                            <!-- Bedtime Start Field -->
+                            <div class="mb-3">
+                                <label for="{{ screen_time_form.bedtime_start.id_for_label }}" class="form-label">
+                                    {{ screen_time_form.bedtime_start.label }}
+                                </label>
+                                {{ screen_time_form.bedtime_start }}
+                                {% if screen_time_form.bedtime_start.help_text %}
+                                    <div class="form-text">{{ screen_time_form.bedtime_start.help_text }}</div>
+                                {% endif %}
+                                {% if screen_time_form.bedtime_start.errors %}
+                                    <div class="text-danger">
+                                        {% for error in screen_time_form.bedtime_start.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Bedtime End Field -->
+                            <div class="mb-3">
+                                <label for="{{ screen_time_form.bedtime_end.id_for_label }}" class="form-label">
+                                    {{ screen_time_form.bedtime_end.label }}
+                                </label>
+                                {{ screen_time_form.bedtime_end }}
+                                {% if screen_time_form.bedtime_end.help_text %}
+                                    <div class="form-text">{{ screen_time_form.bedtime_end.help_text }}</div>
+                                {% endif %}
+                                {% if screen_time_form.bedtime_end.errors %}
+                                    <div class="text-danger">
+                                        {% for error in screen_time_form.bedtime_end.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
                             <button type="submit" class="btn btn-primary">
                                 <span class="btn-text">Update Rules</span>
                                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
