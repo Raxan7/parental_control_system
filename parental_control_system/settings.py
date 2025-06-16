@@ -110,14 +110,28 @@ WSGI_APPLICATION = 'parental_control_system.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'parental_control_db',
+#         'USER': 'parental_admin',
+#         'PASSWORD': 'pass12345',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'parental_control_db',
-        'USER': 'parental_admin',
-        'PASSWORD': 'pass12345',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.getenv('DB_NAME'),  # Database name from .env
+        'USER': os.getenv('DB_USER'),  # Database username from .env
+        'PASSWORD': os.getenv('DB_PASSWORD'),  # Database password from .env
+        'HOST': os.getenv('DB_HOST', default='localhost'),  # Database host from .env
+        'PORT': os.getenv('DB_PORT', default='3306'),  # Database port from .env
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
     }
 }
 
