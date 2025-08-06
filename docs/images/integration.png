@@ -1,0 +1,12 @@
+This is a placeholder file to indicate where the integration architecture diagram should be placed.
+
+In a real implementation, you would replace this text file with an actual image file (PNG, JPG, SVG, etc.).
+
+The integration diagram should illustrate:
+1. Web Platform (Django)
+2. Mobile Application (Android)
+3. API layer connecting them
+4. Data flow between components
+5. Key integration points
+
+Recommended dimensions: 1000px × 700px

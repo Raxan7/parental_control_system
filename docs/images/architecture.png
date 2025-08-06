@@ -1,0 +1,12 @@
+This is a placeholder file to indicate where the system architecture diagram should be placed.
+
+In a real implementation, you would replace this text file with an actual image file (PNG, JPG, SVG, etc.).
+
+The architecture diagram should illustrate:
+1. Web Platform (Django backend)
+2. Mobile Application client
+3. API communication layer
+4. Database
+5. How data flows between components
+
+Recommended dimensions: 800px × 600px
